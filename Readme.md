@@ -31,6 +31,11 @@ This is a easy use, command line based tool for the good of pomodoro.
     <td>n</td>
     <td>go to next step</td>
   </tr>  
+
+  <tr>  
+    <td>k</td>
+    <td>stop</td>
+  </tr>  
 </table>
   
 ## Installation  
