@@ -8,9 +8,13 @@ This is a easy use, command line based tool for the good of pomodoro.
   
 ## Usage  
   
-    pomodoro [-h]  [-w 25] [-r 5] [-n /home/ray/notify.sound] 
+    pomodoro [-h]  [-w 25] [-r 5] [-n /home/ray/notify.sound] [-l 15] [-c 4]
       
   
+## Prerequest  
+* mpv installed  
+* go >=1.5
+
 ## Keyboard  
 <table>  
   <tr>  
@@ -28,3 +32,9 @@ This is a easy use, command line based tool for the good of pomodoro.
     <td>go to next step</td>
   </tr>  
 </table>
+  
+## Installation  
+  
+    export GOPATH=$(pwd)  
+    go build -o [dir]/pomodoro oopschen.github.com/org/ray/
+    cp notify.mp3 [dir]

@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -68,6 +69,7 @@ func doJob(option *Option) {
 		cmd              string
 		workCnt          uint = 0
 		longBreakWorkCnt      = option.longBreakWorkCnt - 1
+		playSndCmd            = exec.Command("mpv", option.notifySoundPath)
 	)
 
 	for !isStop {
@@ -94,6 +96,8 @@ func doJob(option *Option) {
 				mode = MODE_BREAK
 			}
 
+			// play sound
+			playSndCmd.Run()
 			fmt.Printf("Timeout!!!\nWait for your command(r|k|n)\n")
 
 		}
