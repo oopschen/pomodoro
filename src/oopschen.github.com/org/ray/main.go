@@ -69,7 +69,6 @@ func doJob(option *Option) {
 		cmd              string
 		workCnt          uint = 0
 		longBreakWorkCnt      = option.longBreakWorkCnt - 1
-		playSndCmd            = exec.Command("mpv", option.notifySoundPath)
 	)
 
 	for !isStop {
@@ -97,8 +96,12 @@ func doJob(option *Option) {
 			}
 
 			// play sound
-			playSndCmd.Run()
-			fmt.Printf("Timeout!!!\nWait for your command(r|k|n)\n")
+			err := exec.Command("mpv", option.notifySoundPath).Run()
+			if nil != err {
+				fmt.Printf("mpv must be installed\n")
+				break
+			}
+			fmt.Printf("Wait for your command(r|k|n)\n")
 
 		}
 
