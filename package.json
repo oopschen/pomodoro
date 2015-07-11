@@ -1,0 +1,28 @@
+{
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oopschen/pomodoro.git"
+  },
+  "engines": {
+    "node": ">= 0.10.0"
+  },
+  "devDependencies": {
+    "css-loader": "^0.14.5",
+    "express": "^4.12.4",
+    "file-loader": "^0.8.4",
+    "foundation-sites": "^5.5.2",
+    "grunt": "~0.4.5",
+    "grunt-contrib-jshint": "^0.11.2",
+    "grunt-express-server": "^0.5.1",
+    "grunt-webpack": "^1.0.8",
+    "imports-loader": "^0.6.4",
+    "node-sass": "^3.2.0",
+    "react": "^0.13.3",
+    "sass-loader": "git+https://github.com/oopschen/sass-loader.git",
+    "script-loader": "^0.6.1",
+    "style-loader": "^0.12.3",
+    "underscore": "^1.8.3",
+    "url-loader": "^0.5.6"
+  }
+}
