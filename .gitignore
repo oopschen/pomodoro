@@ -1,2 +1,4 @@
-pkg/
-bin/
+node_modules/
+bower_componenets/
+!.gitignore
+.*
