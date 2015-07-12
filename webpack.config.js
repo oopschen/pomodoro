@@ -56,6 +56,7 @@ module.exports = {
     root: [
       getDir("src"),
       getDir("."),
+      getDir('node_modules', 'foundation-sites', 'js', 'foundation'),
       getDir('node_modules', 'foundation-sites', 'js', 'vendor')
     ],
     extensions: ["", ".js", ".scss"]
