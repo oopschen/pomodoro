@@ -11,32 +11,33 @@ module.exports = {
   context: getDir('./src'),
 
   entry: {
-    test: "./script/test.js"
+    index: "./script/index.js",
+    style: "./style/index.scss"
   },
 
   output: {
     path: getDir('./build'),
-    filename: "[name].js"
+    filename: "[hash].js"
   },
+
   module: {
     loaders: [
       { test: /\.css$/, loader: "style!css" },
-      { test: /\.png$/, loader: "url?limit=8192" },
-      { test: /\.scss$/, loader: "style!css!sass?outputStyle=expanded"}
+      { test: /\.(jpeg|png|jpg)$/, loader: "url?limit=512" },
+      { 
+        test: /\.scss$/,
+        loader: "style!css!sass?outputStyle=expanded&" +
+          "includePaths[]=" + getDir('node_modules', 'foundation-sites', 'scss')
+      }
     ]
   },
 
   plugins: [
-    new webpack.ResolverPlugin([
-      new webpack.ResolverPlugin.DirectoryDescriptionFilePlugin("bower.json", ["main"])
-    ])
-
+    new webpack.optimize.CommonsChunkPlugin({name: "index", filename: "[hash].chk.js"})
   ],
 
   resolve: {
-    root: [getDir('bower_components')],
-    extensions: ["", ".js", ".scss"],
-    modulesDirectories: ['node_modules', 'src']
+    root: [getDir("src"), getDir(".")]
   },
 
   progress: false, // Don't show progress 

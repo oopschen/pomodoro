@@ -46,7 +46,11 @@ module.exports = function(grunt) {
       app: {
         src: ['src/script/**/*.js'],
         options: {
-          browser: true
+          browser: true,
+          jquery:true,
+          globals: {
+            require: false
+          }
         }
       }
     },
