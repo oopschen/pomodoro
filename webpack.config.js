@@ -43,7 +43,6 @@ module.exports = {
 
   jshint: _.defaults(
     {
-      failOnHint:true,
       browser: true
     },
     require(path.join(__dirname, "jshintrc.js"))),
