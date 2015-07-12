@@ -21,6 +21,7 @@
     "jshint-loader": "^0.8.3",
     "jsx-loader": "^0.13.2",
     "node-sass": "^3.2.0",
+    "pubsub-js": "^1.5.2",
     "react": "^0.13.3",
     "rhaboo": "^3.2.2",
     "sass-loader": "git+https://github.com/oopschen/sass-loader.git",

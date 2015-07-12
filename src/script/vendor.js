@@ -7,5 +7,6 @@ module.exports = {
   "foundation": foundation,
   "react": require('react/addons'),
   "$": require("jquery"),
-  "rhaboo": require("rhaboo/src/rocks/arr")
+  "rhaboo": require("rhaboo/src/rocks/arr"),
+  "ps": require("pubsub-js")
 };
