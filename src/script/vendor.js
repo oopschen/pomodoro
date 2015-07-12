@@ -5,6 +5,7 @@ require('imports?jQuery=jquery!foundation.topbar');
 
 module.exports = {
   "foundation": foundation,
-  "react": require('react'),
-  "$": require("jquery")
+  "react": require('react/addons'),
+  "$": require("jquery"),
+  "rhaboo": require("rhaboo/src/rocks/arr")
 };
