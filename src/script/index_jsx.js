@@ -11,15 +11,13 @@ require(['script/vendor'], function(vendor) {
     lbMinThrd: 4
   };
 
-  var CONST_STAGE = {
-    // stage constants
-    stgWork: 1,
-    stgBreak: 2,
-    stgLongBreak: 3
-  };
-
   var CONST_STORE_KEY = "pormodoro_opt",
-      CONST_SAVE_OPT = "optSaved";
+      CONST_SAVE_OPT = "optSaved",
+      // evts for logic
+      CONST_START_WORK = "startW",
+      CONST_FIN_WORK = "finW",
+      CONST_START_BREAK= "startB",
+      CONST_FIN_BREAK = "finB";
 
   var optStore = vendor.rhaboo.persistent("pomodoroOptStore");
 
@@ -115,7 +113,7 @@ require(['script/vendor'], function(vendor) {
     },
 
     getInitialState: function() {
-      ps.subscribe(CONST_SAVE_OPT, function(msg) {
+      ps.subscribe(CONST_SAVE_OPT, function() {
         this.showOpt();
       }.bind(this));
       return {showOpt: false};
