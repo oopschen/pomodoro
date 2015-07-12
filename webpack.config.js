@@ -12,13 +12,13 @@ module.exports = {
   context: getDir('./src'),
 
   entry: {
-    index: "./script/index_jsx.js",
+    index: ["./script/index_jsx.js"],
     style: "./style/index.scss"
   },
 
   output: {
     path: getDir('./build/script'),
-    filename: "[hash].js"
+    filename: "[name].js"
   },
 
   module: {
@@ -49,7 +49,8 @@ module.exports = {
     require(path.join(__dirname, "jshintrc.js"))),
 
   plugins: [
-    new webpack.optimize.CommonsChunkPlugin({name: "index", filename: "[hash].chk.js"})
+    new webpack.optimize.CommonsChunkPlugin({name: "index", filename: "[name].c.js"}),
+    new webpack.optimize.OccurenceOrderPlugin(true)
   ],
 
   resolve: {
