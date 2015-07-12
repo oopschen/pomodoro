@@ -52,7 +52,7 @@ require(['script/vendor'], function(vendor) {
           </div>
 
           <div className="row">
-            <div className="small-2 small-offset-3 columns">
+            <div className="small-4 small-offset-4 columns">
               <a href="javascript:void(0);" className="button round" onClick={this.saveData}>{this.props.submitBtnName}</a>
             </div>
           </div>
@@ -124,13 +124,13 @@ require(['script/vendor'], function(vendor) {
       return (
         <div>
           <div className="row">
-            <div className="small-12">
-              <nav id="stb" className="top-bar" data-topbar role="navigation">
+            <div className="small-12" id="stb">
+              <nav className="top-bar" data-topbar role="navigation">
                 <ul className="title-area">
                   <li className="name">
                     <h1><a href={this.props.mainURL} target="_blank">{this.props.mainName}</a></h1>
                   </li>
-                  <li className="toggle-topbar menu-icon"><a href="javascript:void(0);"><span>Menu</span></a></li>
+                  <li className="toggle-topbar menu-icon"><a href="javascript:void(0);"><span></span></a></li>
                 </ul>
 
                 <section className="top-bar-section">
@@ -144,11 +144,11 @@ require(['script/vendor'], function(vendor) {
 
           <div className="row">
             <div>
-              <div className={showOpt ? "small-9 columns" : "small-12"}>
+              <div className={showOpt ? "hide" : "small-12 columns"}>
                 <MainCmp />
               </div>
 
-              <div className={showOpt ? "small-3 columns" : "hide"}> 
+              <div className={showOpt ? "small-12 columns" : "hide"}> 
                 <OptCmp />
               </div>
             </div>
