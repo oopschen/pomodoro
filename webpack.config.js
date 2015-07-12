@@ -1,5 +1,6 @@
 var webpack = require('webpack');
 var path = require('path');
+var _ = require('underscore');
 
 var getDir = function() {
   var args = Array.prototype.slice.call(arguments);
@@ -11,12 +12,12 @@ module.exports = {
   context: getDir('./src'),
 
   entry: {
-    index: "./script/index.js",
+    index: "./script/index_jsx.js",
     style: "./style/index.scss"
   },
 
   output: {
-    path: getDir('./build'),
+    path: getDir('./build/script'),
     filename: "[hash].js"
   },
 
@@ -24,20 +25,35 @@ module.exports = {
     loaders: [
       { test: /\.css$/, loader: "style!css" },
       { test: /\.(jpeg|png|jpg)$/, loader: "url?limit=512" },
+      { test: /_jsx\.js/, loader: "jsx" },
       { 
         test: /\.scss$/,
         loader: "style!css!sass?outputStyle=expanded&" +
           "includePaths[]=" + getDir('node_modules', 'foundation-sites', 'scss')
       }
+    ],
+
+    postLoaders: [
+      {
+        test: /\.js$/, // include .js files
+        exclude: /node_modules/, // exclude any and all files in the node_modules folder
+        loader: "jshint-loader"
+      }
     ]
   },
+
+  jshint: _.defaults(
+    {
+      failOnHint:true
+    },
+    require(path.join(__dirname, "jshintrc.js"))),
 
   plugins: [
     new webpack.optimize.CommonsChunkPlugin({name: "index", filename: "[hash].chk.js"})
   ],
 
   resolve: {
-    root: [getDir("src"), getDir(".")]
+    root: [getDir("src"), getDir("."), getDir('node_modules', 'foundation-sites', 'js', 'vendor')]
   },
 
   progress: false, // Don't show progress 

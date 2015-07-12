@@ -18,41 +18,15 @@ module.exports = function(grunt) {
     }));
   }
 
+  // jshint-opts
+  var jshintOpts = _.defaults({node:true}, require(path.join(__dirname, "jshintrc.js")));
+
   // Project configuration.
   grunt.initConfig({
     // Metadata.
     jshint: {
-      options: {
-        curly: true,
-        eqeqeq: true,
-        immed: true,
-        latedef: true,
-        newcap: true,
-        noarg: true,
-        sub: true,
-        undef: true,
-        unused: true,
-        boss: true,
-        eqnull: true
-      },
-
-      gruntfile: {
-        src: ['Gruntfile.js', 'webpack.config.js'],
-        options:{
-          node: true
-        }
-      },
-
-      app: {
-        src: ['src/script/**/*.js'],
-        options: {
-          browser: true,
-          jquery:true,
-          globals: {
-            require: false
-          }
-        }
-      }
+      options: jshintOpts,
+      src: ['Gruntfile.js', 'webpack.config.js']
     },
 
     express: {
