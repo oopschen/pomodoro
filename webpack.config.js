@@ -12,8 +12,7 @@ module.exports = {
   context: getDir('./src'),
 
   entry: {
-    index: ["./script/index_jsx.js"],
-    style: "./style/index.scss"
+    index: ["./script/index_jsx.js"]
   },
 
   output: {
@@ -44,17 +43,22 @@ module.exports = {
 
   jshint: _.defaults(
     {
-      failOnHint:true
+      failOnHint:true,
+      browser: true
     },
     require(path.join(__dirname, "jshintrc.js"))),
 
   plugins: [
-    new webpack.optimize.CommonsChunkPlugin({name: "index", filename: "[name].c.js"}),
     new webpack.optimize.OccurenceOrderPlugin(true)
   ],
 
   resolve: {
-    root: [getDir("src"), getDir("."), getDir('node_modules', 'foundation-sites', 'js', 'vendor')]
+    root: [
+      getDir("src"),
+      getDir("."),
+      getDir('node_modules', 'foundation-sites', 'js', 'vendor')
+    ],
+    extensions: ["", ".js", ".scss"]
   },
 
   progress: false, // Don't show progress 
