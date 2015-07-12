@@ -1,7 +1,8 @@
 require(['style/index']);
 require(['script/vendor'], function(vendor) {
-  var React = vendor.react;
-  var $ =  vendor.$;
+  var React = vendor.react,
+      $ =  vendor.$,
+      ps = vendor.ps;
 
   var DEFAULTS = {
     workMin: 25,
@@ -17,7 +18,8 @@ require(['script/vendor'], function(vendor) {
     stgLongBreak: 3
   };
 
-  var CONST_STORE_KEY = "pormodoro_opt";
+  var CONST_STORE_KEY = "pormodoro_opt",
+      CONST_SAVE_OPT = "optSaved";
 
   var optStore = vendor.rhaboo.persistent("pomodoroOptStore");
 
@@ -63,7 +65,7 @@ require(['script/vendor'], function(vendor) {
 
     getInitialState: function() {
       var val = optStore[CONST_STORE_KEY];
-      return !val ? $.extend({}, DEFAULTS) : val;
+      return undefined === val.workMin ? $.extend({}, DEFAULTS) : val;
     },
 
     getDefaultProps: function() {
@@ -78,6 +80,7 @@ require(['script/vendor'], function(vendor) {
 
     saveData: function() {
       optStore.write(CONST_STORE_KEY, this.state);
+      ps.publish(CONST_SAVE_OPT);
     }
 
   });
@@ -112,6 +115,9 @@ require(['script/vendor'], function(vendor) {
     },
 
     getInitialState: function() {
+      ps.subscribe(CONST_SAVE_OPT, function(msg) {
+        this.showOpt();
+      }.bind(this));
       return {showOpt: false};
     },
 
