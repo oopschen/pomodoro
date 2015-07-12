@@ -9,5 +9,6 @@ module.exports = {
   undef: true,
   unused: true,
   boss: true,
-  eqnull: true
+  eqnull: true,
+  scripturl: true
 };

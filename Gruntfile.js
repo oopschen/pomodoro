@@ -18,6 +18,10 @@ module.exports = function(grunt) {
     }));
   }
 
+  if (isDebug && wCfg.jshint) {
+    wCfg.jshint["devel"] = true;
+  }
+
   // jshint-opts
   var jshintOpts = _.defaults({node:true}, require(path.join(__dirname, "jshintrc.js")));
 
