@@ -28,32 +28,36 @@ require(['script/vendor'], function(vendor) {
       return (
         <form>
           <div className="row">
-            <label>{this.props.workTimeName}
-              <input type="text" valueLink={this.linkState('workMin')} />
-            </label>
+            <div className="small-6 columns">
+              <label>{this.props.workTimeName}
+                <input type="text" valueLink={this.linkState('workMin')} />
+              </label>
+            </div>
+
+            <div className="small-6 columns">
+              <label>{this.props.breakTimeName}
+                <input type="text" valueLink={this.linkState('breakMin')} />
+              </label>
+            </div>
           </div>
 
           <div className="row">
-            <label>{this.props.breakTimeName}
-              <input type="text" valueLink={this.linkState('breakMin')} />
-            </label>
+            <div className="small-6 columns">
+              <label>{this.props.longbreakTimeName}
+                <input type="text" valueLink={this.linkState('longBreakMin')} />
+              </label>
+            </div>
+
+            <div className="small-6 columns">
+              <label>{this.props.longBreakThreadhold}
+                <input type="text" valueLink={this.linkState('lbMinThrd')} />
+              </label>
+            </div>
           </div>
 
           <div className="row">
-            <label>{this.props.longbreakTimeName}
-              <input type="text" valueLink={this.linkState('longBreakMin')} />
-            </label>
-          </div>
-
-          <div className="row">
-            <label>{this.props.longBreakThreadhold}
-              <input type="text" valueLink={this.linkState('lbMinThrd')} />
-            </label>
-          </div>
-
-          <div className="row">
-            <div className="small-4 small-offset-4 columns">
-              <a href="javascript:void(0);" className="button round" onClick={this.saveData}>{this.props.submitBtnName}</a>
+            <div className="small-4 small-centered columns">
+              <a href="javascript:void(0);" className="button round columns" onClick={this.saveData}>{this.props.submitBtnName}</a>
             </div>
           </div>
 
@@ -63,7 +67,7 @@ require(['script/vendor'], function(vendor) {
 
     getInitialState: function() {
       var val = optStore[CONST_STORE_KEY];
-      return undefined === val.workMin ? $.extend({}, DEFAULTS) : val;
+      return !val || undefined === val.workMin ? $.extend({}, DEFAULTS) : val;
     },
 
     getDefaultProps: function() {
