@@ -1,25 +1,32 @@
 require(['style/index']);
-require(['script/vendor'], function(vendor) {
+require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
   var React = vendor.react,
       $ =  vendor.$,
       ps = vendor.ps;
 
-  var DEFAULTS = {
-    workMin: 25,
-    breakMin: 5,
-    longBreakMin: 15,
-    lbMinThrd: 4
+
+  var CONST_STORE_KEY = "pormodoro.opt",
+      CONST_SAVE_OPT = "opt.save",
+      CONST_UP_TIME = "timer.up";
+
+  var optStore = vendor.rhaboo.persistent("pomodoro.optstore");
+
+  //pomodoro instance
+  var pomoCB = function(flag, sec) {
+    if (Pomo.FLAG.CNT_DOWN === flag) {
+      ps.publish(CONST_UP_TIME, {sec:sec, flag: flag});
+
+    } else {
+      ps.publish(CONST_UP_TIME, {flag: flag});
+
+    }
   };
+  var pomoIns = new Pomo(pomoCB, optStore[CONST_STORE_KEY]);
 
-  var CONST_STORE_KEY = "pormodoro_opt",
-      CONST_SAVE_OPT = "optSaved",
-      // evts for logic
-      CONST_START_WORK = "startW",
-      CONST_FIN_WORK = "finW",
-      CONST_START_BREAK= "startB",
-      CONST_FIN_BREAK = "finB";
-
-  var optStore = vendor.rhaboo.persistent("pomodoroOptStore");
+  // utils
+  var paddingZero = function(val) {
+    return 10 > val ? ("0" + val) : val;
+  };
 
   //option components
   var OptCmp = React.createClass({
@@ -66,8 +73,8 @@ require(['script/vendor'], function(vendor) {
     },
 
     getInitialState: function() {
-      var val = optStore[CONST_STORE_KEY];
-      return !val || undefined === val.workMin ? $.extend({}, DEFAULTS) : val;
+      var val = pomoIns.getSetting();
+      return !val || undefined === val.workMin ? $.extend({}, Pomo.DEFAULTS) : val;
     },
 
     getDefaultProps: function() {
@@ -82,6 +89,7 @@ require(['script/vendor'], function(vendor) {
 
     saveData: function() {
       optStore.write(CONST_STORE_KEY, this.state);
+      pomoIns.update(this.state);
       ps.publish(CONST_SAVE_OPT);
     }
 
@@ -89,12 +97,89 @@ require(['script/vendor'], function(vendor) {
 
   //main components
   var MainCmp = React.createClass({
+    getDefaultProps: function() {
+      return {
+        btnNextName: "Next",
+        btnResetName: "Reset",
+      };
+    },
+
+    getInitialState: function() {
+      ps.subscribe(CONST_UP_TIME, function(msg, data) {
+        if (msg !== CONST_UP_TIME) {
+          return;
+        }
+
+        if (Pomo.FLAG.CNT_DOWN === data.flag) {
+          var min = Math.floor(data.sec / 60),
+              sec = data.sec - min * 60;
+          this.setState({min:paddingZero(min), sec: paddingZero(sec)});
+          return;
+
+        }
+
+        var tPrompt;
+        if (Pomo.FLAG.END_WK === data.flag) {
+          tPrompt = "Work Done, take a break!";
+
+        } else if (Pomo.FLAG.END_BK === data.flag || Pomo.FLAG.END_L_BK === data.flag) {
+          tPrompt = "Break Time Over!";
+
+        }
+        this.setState({min:paddingZero(0), sec: paddingZero(0), timeoutPrompt: tPrompt, tt:true});
+
+      }.bind(this));
+
+      return {
+        tt: false,
+        min: "00",
+        sec: "00",
+        timeoutPrompt: ""
+      };
+    },
+
     render: function() {
       return (
-        <div>
-          main cmp
+        <div className="row">
+
+          <div className={this.state.tt ? "row" : "hide"}>
+            <div className="small-5 small-centered column">
+              <div data-alert className="alert-box success radius">
+                {this.state.timeoutPrompt}
+                    <a href="javascript:void(0);" className="close">&times;</a>
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="small-8 small-centered columns">
+                <span className="text-center margin-20 font-15">{this.state.min}</span>
+                <span className="text-center margin-20 font-12">:</span>
+                <span className="text-center margin-20 font-15">{this.state.sec}</span>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="small-5 small-centered columns">
+              <ul className="button-group round even-2">
+                <li><a href="javascript:void(0);" className="button" onClick={this.hdlNext}>{this.props.btnNextName}</a></li>
+                <li><a href="javascript:void(0);" className="button" onClick={this.hdlReset}>{this.props.btnResetName}</a></li>
+              </ul>
+            </div>
+          </div>
+
         </div>
       );
+    },
+
+    hdlNext: function() {
+      this.setState({tt:false});
+      pomoIns.next();
+    },
+
+    hdlReset: function() {
+      this.setState({tt:false, min: "00", sec: "00"});
+      pomoIns.reset();
     }
 
   });
