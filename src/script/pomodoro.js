@@ -82,6 +82,9 @@ pomo.prototype._start = function(sec, cnt, flag) {
   var tmpCnt = 0;
 
   this._st = flag;
+  // init call
+  this._cb(ST_CNT_DOWN, sec*cnt);
+
   this._interHdl = setInterval(function() {
     if(tmpCnt++ < cnt) {
       this._cb(ST_CNT_DOWN, sec * (cnt - tmpCnt));
