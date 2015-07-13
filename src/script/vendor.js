@@ -10,3 +10,5 @@ module.exports = {
   "rhaboo": require("rhaboo/src/rocks/arr"),
   "ps": require("pubsub-js")
 };
+
+require('jplayer');

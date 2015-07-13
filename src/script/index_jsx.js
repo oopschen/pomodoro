@@ -4,12 +4,13 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
       $ =  vendor.$,
       ps = vendor.ps;
 
-
   var CONST_STORE_KEY = "pormodoro.opt",
       CONST_SAVE_OPT = "opt.save",
       CONST_UP_TIME = "timer.up";
 
   var optStore = vendor.rhaboo.persistent("pomodoro.optstore");
+  var notifySnd = require('file?name=[hash].[ext]!../snd/notify.mp3');
+  var player;
 
   //pomodoro instance
   var pomoCB = function(flag, sec) {
@@ -117,6 +118,9 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
           return;
 
         }
+
+        // play sound
+        player.jPlayer("play", 0);
 
         var tPrompt;
         if (Pomo.FLAG.END_WK === data.flag) {
@@ -242,6 +246,11 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
               </div>
             </div>
           </div>
+
+          <div className="hide">
+            <div id="player"></div>
+            <div id="playerC"><a className="jp-play" href="javascript:void(0);">Play</a></div>
+          </div>
         </div>
       );
     }
@@ -250,6 +259,20 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
   React.render(<MainApp />, document.body, function() {
     $("#stb").foundation();
     $("#main").foundation();
+
+    player = $('#player').jPlayer({
+      swfPath: require('file?name=[hash].[ext]!../../node_modules/jplayer/dist/jplayer/jquery.jplayer.swf'),
+      preload: 'auto',
+      cssSelectorAncestor: "#playerC",
+      volume: 1,
+      errorAlerts: false,
+      warningAlerts: false,
+      ready: function () {
+        $(this).jPlayer("setMedia", {
+          mp3: notifySnd // Defines the mp3 url
+        });
+      }
+    });
   });
 
 });
