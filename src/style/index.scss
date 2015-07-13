@@ -1,3 +1,17 @@
 @import "normalize";
 @import "foundation/components/type";
 @import "foundation/components/top-bar";
+@import "foundation/components/button-groups";
+@import "foundation/components/alert-boxes";
+
+.margin-20 {
+  margin: 0 20px auto;
+}
+
+.font-15 {
+  font-size: em-calc(230);
+}
+
+.font-12 {
+  font-size: em-calc(90);
+}
