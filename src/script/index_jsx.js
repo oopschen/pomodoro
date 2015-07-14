@@ -102,6 +102,8 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
       return {
         btnNextName: "Next",
         btnResetName: "Reset",
+        tipsTitle: "Keyboard shortcut",
+        tipsContent: "Spacebar for next, r for next"
       };
     },
 
@@ -144,7 +146,15 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
 
     render: function() {
       return (
-        <div className="row">
+        <div>
+          <div className="row">
+            <div className="small-12 column">
+              <div className="panel callout radius">
+                <h6>{this.props.tipsTitle}</h6>
+                <p>{this.props.tipsContent}</p>
+              </div>
+            </div>
+          </div>
 
           <div className={this.state.tt ? "row" : "hide"}>
             <div className="small-5 small-centered column">
@@ -215,9 +225,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
          mainName:"Pomodoro",
          mainURL:"http://pomodorotechnique.com",
          optName: "Option",
-         closeOptname: "Close",
-         tipsTitle: "Keyboard shortcut",
-         tipsContent: "Spacebar for next, r for next"
+         closeOptname: "Close"
       };
     },
 
@@ -258,25 +266,13 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
           </div>
 
           <div className="row">
-            <div className="row">
-              <div className="small-10 small-centered column">
-                <div className="panel callout radius">
-                  <h6>{this.props.tipsTitle}</h6>
-                  <p>{this.props.tipsContent}</p>
-                </div>
-              </div>
+            <div className={showOpt ? "hide" : "small-12 columns"}>
+              <MainCmp />
             </div>
 
-            <div className="row">
-              <div className={showOpt ? "hide" : "small-12 columns"}>
-                <MainCmp />
-              </div>
-
-              <div className={showOpt ? "small-12 columns" : "hide"}> 
-                <OptCmp />
-              </div>
+            <div className={showOpt ? "small-12 columns" : "hide"}> 
+              <OptCmp />
             </div>
-
           </div>
 
           <div className="hide">
