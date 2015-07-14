@@ -6,8 +6,16 @@ var _ = require('underscore');
 module.exports = function(grunt) {
   var webpackConfig = require(path.join(__dirname, "webpack.config.js"));
   var isDebug = "prod" !== process.env["m"];
-  var wCfg = !isDebug ? _.defaults({watch:false}, webpackConfig) : webpackConfig;
+  var wCfg = webpackConfig;
   if (!isDebug && wCfg.plugins) {
+    if (wCfg.watch) {
+      wCfg.watch = false;
+    }
+
+    if (wCfg.devtool) {
+      delete wCfg.devtool;
+    }
+
     wCfg.plugins.push(new webpack.optimize.UglifyJsPlugin({
       mangle: {
         except: ['$super', '$', 'exports', 'require']
