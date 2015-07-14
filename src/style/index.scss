@@ -4,15 +4,14 @@
 @import "foundation/components/button-groups";
 @import "foundation/components/alert-boxes";
 @import "foundation/components/panels";
+@import "foundation/components/visibility";
 
-.margin-20 {
-  margin: 0 20px auto;
-}
+.font-time {
+  @media all and (min-width: 600px) {
+    font-size: rem-calc(224);
+  }
 
-.font-15 {
-  font-size: em-calc(230);
-}
-
-.font-12 {
-  font-size: em-calc(90);
+  @media all and (max-width: 500px) {
+    font-size: rem-calc(80);
+  }
 }

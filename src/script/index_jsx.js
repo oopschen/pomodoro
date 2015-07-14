@@ -64,7 +64,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
           </div>
 
           <div className="row">
-            <div className="small-4 small-centered columns">
+            <div className="small-6 small-centered columns">
               <a href="javascript:void(0);" className="button round columns" onClick={this.saveData}>{this.props.submitBtnName}</a>
             </div>
           </div>
@@ -148,7 +148,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
       return (
         <div>
           <div className="row">
-            <div className="small-12 column">
+            <div className="small-12 column show-for-large-only">
               <div className="panel callout radius">
                 <h6>{this.props.tipsTitle}</h6>
                 <p>{this.props.tipsContent}</p>
@@ -157,7 +157,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
           </div>
 
           <div className={this.state.tt ? "row" : "hide"}>
-            <div className="small-5 small-centered column">
+            <div className="small-8 small-centered column">
               <div data-alert className="alert-box success radius">
                 {this.state.timeoutPrompt}
               </div>
@@ -165,15 +165,27 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
           </div>
 
           <div className="row">
-            <div className="small-8 small-centered columns">
-                <span className="text-center margin-20 font-15">{this.state.min}</span>
-                <span className="text-center margin-20 font-12">:</span>
-                <span className="text-center margin-20 font-15">{this.state.sec}</span>
+            <div className="small-12 small-centered columns">
+
+              <div className="row font-time">
+                <div className="small-5 columns text-center">
+                  {this.state.min}
+                </div>
+
+                <div className="small-2 columns text-center">
+                  :
+                </div>
+                
+                <div className="small-5 column text-center">
+                  {this.state.sec}
+                </div>
+              </div>
+
             </div>
           </div>
 
           <div className="row">
-            <div className="small-5 small-centered columns">
+            <div className="small-8 small-centered columns">
               <ul className="button-group round even-2">
                 <li><a href="javascript:void(0);" className="button" onClick={this.hdlNext}>{this.props.btnNextName}</a></li>
                 <li><a href="javascript:void(0);" className="button" onClick={this.hdlReset}>{this.props.btnResetName}</a></li>
