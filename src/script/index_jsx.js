@@ -150,7 +150,6 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
             <div className="small-5 small-centered column">
               <div data-alert className="alert-box success radius">
                 {this.state.timeoutPrompt}
-                    <a href="javascript:void(0);" className="close">&times;</a>
               </div>
             </div>
           </div>
@@ -184,6 +183,27 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
     hdlReset: function() {
       this.setState({tt:false, min: "00", sec: "00"});
       pomoIns.reset();
+    },
+
+    componentDidMount: function() {
+      $(document).keydown(this.hdlKeyPress);
+    },
+
+    componentWillUnmount: function() {
+      $(document).off("keydown");
+    },
+
+    hdlKeyPress: function(evt) {
+      // spacebar 32, r 82
+      switch(evt.which) {
+        case 32:
+          this.hdlNext();
+          break;
+
+        case 82:
+          this.hdlReset();
+          break;
+      }
     }
 
   });
@@ -195,7 +215,9 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
          mainName:"Pomodoro",
          mainURL:"http://pomodorotechnique.com",
          optName: "Option",
-         closeOptname: "Close"
+         closeOptname: "Close",
+         tipsTitle: "Keyboard shortcut",
+         tipsContent: "Spacebar for next, r for next"
       };
     },
 
@@ -217,7 +239,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
       return (
         <div>
           <div className="row">
-            <div className="small-12" id="stb">
+            <div className="small-12 column" id="stb">
               <nav className="top-bar" data-topbar role="navigation">
                 <ul className="title-area">
                   <li className="name">
@@ -236,7 +258,16 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
           </div>
 
           <div className="row">
-            <div>
+            <div className="row">
+              <div className="small-10 small-centered column">
+                <div className="panel callout radius">
+                  <h6>{this.props.tipsTitle}</h6>
+                  <p>{this.props.tipsContent}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="row">
               <div className={showOpt ? "hide" : "small-12 columns"}>
                 <MainCmp />
               </div>
@@ -245,6 +276,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
                 <OptCmp />
               </div>
             </div>
+
           </div>
 
           <div className="hide">
@@ -254,6 +286,7 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
         </div>
       );
     }
+
   });
 
   React.render(<MainApp />, document.body, function() {
