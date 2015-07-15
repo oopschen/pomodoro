@@ -24,14 +24,13 @@ module.exports = function(grunt) {
       }),
 
       new webpack.optimize.UglifyJsPlugin({
-        mangle: {
-          except: ['$super', '$', 'exports', 'require']
-        },
+        mangle: true,
         compress: {
           warnings: false
         },
         output: {
-          comments:false
+          comments:false,
+          space_colon: false
         }
       })
     ];
