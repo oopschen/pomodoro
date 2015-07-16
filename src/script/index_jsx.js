@@ -299,7 +299,6 @@ require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
 
   React.render(<MainApp />, document.body, function() {
     $("#stb").foundation();
-    $("#main").foundation();
 
     player = $('#player').jPlayer({
       swfPath: require('file?name=[hash].[ext]!../../node_modules/jplayer/dist/jplayer/jquery.jplayer.swf'),

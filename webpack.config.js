@@ -54,10 +54,12 @@ module.exports = {
   resolve: {
     root: [
       getDir("src"),
-      getDir("."),
-      getDir('node_modules', 'foundation-sites', 'js', 'foundation'),
-      getDir('node_modules', 'foundation-sites', 'js', 'vendor')
+      getDir('node_modules', 'foundation-sites', 'js', 'foundation')
     ],
+    alias: {
+      "modernizr": getDir("./node_modules/foundation-sites/js/vendor/modernizr.js"),
+      "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js")
+    },
     extensions: ["", ".js", ".scss"]
   },
 
