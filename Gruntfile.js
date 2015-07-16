@@ -16,14 +16,27 @@ module.exports = function(grunt) {
       delete wCfg.devtool;
     }
 
-    wCfg.plugins.push(new webpack.optimize.UglifyJsPlugin({
-      mangle: {
-        except: ['$super', '$', 'exports', 'require']
-      },
-      compress: {
-        warnings: false
-      }
-    }));
+    var plugins = [
+      new webpack.DefinePlugin({
+        'process.env': {
+          'NODE_ENV': '"production"'
+        }
+      }),
+
+      new webpack.optimize.UglifyJsPlugin({
+        mangle: true,
+        compress: {
+          warnings: false
+        },
+        output: {
+          comments:false,
+          space_colon: false
+        }
+      })
+    ];
+
+    wCfg.plugins = wCfg.plugins.concat(plugins);
+
   }
 
   if (isDebug && wCfg.jshint) {
