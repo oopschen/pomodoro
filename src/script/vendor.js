@@ -1,14 +1,14 @@
 require('imports?this=>window!modernizr');
 require('fastclick');
-var foundation = require('imports?jQuery=jquery!foundation-sites');
+var jq = require("jquery");
+var foundation = require('imports?jQuery=jquery!foundation');
 require('imports?jQuery=jquery!foundation.topbar');
 
 module.exports = {
   "foundation": foundation,
   "react": require('react/addons'),
-  "$": require("jquery"),
-  "rhaboo": require("rhaboo/src/rocks/arr"),
+  "$": jq,
+  "rhaboo": require("rhaboo"),
   "ps": require("pubsub-js")
 };
 
-require('jplayer');
