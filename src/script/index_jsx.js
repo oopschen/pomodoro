@@ -4,7 +4,6 @@ require('fastclick');
 var $ = require('jquery');
 require('imports?jQuery=jquery!foundation');
 require('imports?jQuery=jquery!foundation.topbar');
-require('jplayer');
 
 require(['script/pomodoro'], function(Pomo) {
   var React = require('react'),
@@ -127,9 +126,6 @@ require(['script/pomodoro'], function(Pomo) {
 
         }
 
-        // play sound
-        player.jPlayer("play", 0);
-
         var tPrompt;
         if (Pomo.FLAG.END_WK === data.flag) {
           tPrompt = "Work Done, take a break!";
@@ -139,6 +135,33 @@ require(['script/pomodoro'], function(Pomo) {
 
         }
         this.setState({min:paddingZero(0), sec: paddingZero(0), timeoutPrompt: tPrompt, tt:true});
+
+        // play sound
+        if (!player) {
+          require(['jplayer'], function() {
+            player = $('#player').jPlayer({
+              swfPath: require('file?name=[hash].[ext]!../../node_modules/jplayer/dist/jplayer/jquery.jplayer.swf'),
+              preload: 'auto',
+              cssSelectorAncestor: "#playerC",
+              volume: 1,
+              errorAlerts: false,
+              warningAlerts: false,
+              ready: function () {
+                $(this).jPlayer("setMedia", {
+                  mp3: notifySnd // Defines the mp3 url
+                });
+
+                player.jPlayer("play", 0);
+              }
+            });
+
+
+          });
+
+        } else {
+            player.jPlayer("play", 0);
+
+        }
 
       }.bind(this));
 
@@ -306,19 +329,6 @@ require(['script/pomodoro'], function(Pomo) {
   React.render(<MainApp />, document.body, function() {
     $("#stb").foundation();
 
-    player = $('#player').jPlayer({
-      swfPath: require('file?name=[hash].[ext]!../../node_modules/jplayer/dist/jplayer/jquery.jplayer.swf'),
-      preload: 'auto',
-      cssSelectorAncestor: "#playerC",
-      volume: 1,
-      errorAlerts: false,
-      warningAlerts: false,
-      ready: function () {
-        $(this).jPlayer("setMedia", {
-          mp3: notifySnd // Defines the mp3 url
-        });
-      }
-    });
   });
 
 });
