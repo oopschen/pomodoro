@@ -66,6 +66,12 @@ module.exports = function(grunt) {
 
     webpack: {
       serv: wCfg
+    },
+
+    clean: {
+      build: {
+        src: ["./build/**/*"]
+      }
     }
 
   });
@@ -74,9 +80,11 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-express-server');
   grunt.loadNpmTasks('grunt-webpack');
+  grunt.loadNpmTasks('grunt-contrib-clean');
 
+  var baseTask = ['clean:build', 'jshint'];
+  var tasks = isDebug ? ['express:run', 'webpack:serv'] : ['webpack:serv'];
   // Default task.
-  grunt.registerTask('default',
-                     isDebug ? ['jshint', 'express:run', 'webpack:serv'] : ['jshint', 'webpack:serv']);
+  grunt.registerTask('default', baseTask.concat(tasks));
 
 };

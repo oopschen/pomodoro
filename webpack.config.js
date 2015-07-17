@@ -58,7 +58,9 @@ module.exports = {
     ],
     alias: {
       "modernizr": getDir("./node_modules/foundation-sites/js/vendor/modernizr.js"),
-      "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js")
+      "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js"),
+      "react": getDir("./node_modules/react/addons.js"),
+      "jquery": getDir("./node_modules/jquery/dist/jquery.js")
     },
     extensions: ["", ".js", ".scss"]
   },
