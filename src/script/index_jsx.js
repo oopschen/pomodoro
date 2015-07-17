@@ -1,14 +1,20 @@
-require(['style/index']);
-require(['script/vendor', 'script/pomodoro'], function(vendor, Pomo) {
-  var React = vendor.react,
-      $ =  vendor.$,
-      ps = vendor.ps;
+require('style/index');
+require('imports?this=>window!modernizr');
+require('fastclick');
+var $ = require('jquery');
+require('imports?jQuery=jquery!foundation');
+require('imports?jQuery=jquery!foundation.topbar');
+require('jplayer');
+
+require(['script/pomodoro'], function(Pomo) {
+  var React = require('react'),
+      ps = require('pubsub-js');
 
   var CONST_STORE_KEY = "pormodoro.opt",
       CONST_SAVE_OPT = "opt.save",
       CONST_UP_TIME = "timer.up";
 
-  var optStore = vendor.rhaboo.persistent("pomodoro.optstore");
+  var optStore = require("rhaboo").persistent("pomodoro.optstore");
   var notifySnd = require('file?name=[hash].[ext]!../snd/notify.mp3');
   var player;
 
