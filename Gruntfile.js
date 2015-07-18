@@ -1,48 +1,8 @@
 'use strict';
-var webpack = require('webpack');
 var path = require('path');
 var _ = require('underscore');
 
 module.exports = function(grunt) {
-  var webpackConfig = require(path.join(__dirname, "webpack.config.js"));
-  var isDebug = "prod" !== process.env["m"];
-  var wCfg = webpackConfig;
-  if (!isDebug && wCfg.plugins) {
-    if (wCfg.watch) {
-      wCfg.watch = false;
-    }
-
-    if (wCfg.devtool) {
-      delete wCfg.devtool;
-    }
-
-    var plugins = [
-      new webpack.DefinePlugin({
-        'process.env': {
-          'NODE_ENV': '"production"'
-        }
-      }),
-
-      new webpack.optimize.UglifyJsPlugin({
-        mangle: true,
-        compress: {
-          warnings: false
-        },
-        output: {
-          comments:false,
-          space_colon: false
-        }
-      })
-    ];
-
-    wCfg.plugins = wCfg.plugins.concat(plugins);
-
-  }
-
-  if (isDebug && wCfg.jshint) {
-    wCfg.jshint["devel"] = true;
-  }
-
   // jshint-opts
   var jshintOpts = _.defaults({node:true}, require(path.join(__dirname, "jshintrc.js")));
 
@@ -64,13 +24,19 @@ module.exports = function(grunt) {
       }
     },
 
-    webpack: {
-      serv: wCfg
-    },
-
     clean: {
       build: {
         src: ["./build/**/*"]
+      }
+    },
+
+    env: {
+      dev: {
+        NODE_ENV: "development"
+      },
+
+      prod: {
+        NODE_ENV: "production"
       }
     }
 
@@ -81,10 +47,20 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-express-server');
   grunt.loadNpmTasks('grunt-webpack');
   grunt.loadNpmTasks('grunt-contrib-clean');
+  grunt.loadNpmTasks('grunt-env');
 
-  var baseTask = ['clean:build', 'jshint'];
-  var tasks = isDebug ? ['express:run', 'webpack:serv'] : ['webpack:serv'];
+  var baseTask = ['clean:build', 'jshint'],
+      taskDev = ['env:dev', 'setup', 'express:run', 'webpack:serv'],
+      taskProd = ['env:prod', 'setup', 'webpack:serv'];
+
   // Default task.
-  grunt.registerTask('default', baseTask.concat(tasks));
+  grunt.registerTask('setup', function() {
+    grunt.config('webpack', {
+      serv: require(path.join(__dirname, "webpack.config.js"))
+    });
+  });
+
+  grunt.registerTask('default', baseTask.concat(taskDev));
+  grunt.registerTask('prod', baseTask.concat(taskProd));
 
 };

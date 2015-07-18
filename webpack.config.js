@@ -7,7 +7,9 @@ var getDir = function() {
   return path.join.apply(path, [__dirname].concat(args));
 };
 
-module.exports = {
+var isProd = "production" === process.env["NODE_ENV"];
+
+var cfg = {
   // webpack options 
   context: getDir('./src'),
 
@@ -22,7 +24,7 @@ module.exports = {
 
   module: {
     loaders: [
-      { test: /\.css$/, loader: "style!css" },
+      { test: /\.css$/, loader: "style!css"},
       { test: /\.(jpeg|png|jpg)$/, loader: "url?limit=512" },
       { test: /_jsx\.js/, loader: "jsx" },
       { 
@@ -47,35 +49,58 @@ module.exports = {
     },
     require(path.join(__dirname, "jshintrc.js"))),
 
-  plugins: [
-    new webpack.optimize.OccurenceOrderPlugin(true)
-  ],
-
-  resolve: {
-    root: [
-      getDir("src"),
-      getDir('node_modules', 'foundation-sites', 'js', 'foundation')
+    plugins: [
+      new webpack.optimize.OccurenceOrderPlugin(true)
     ],
-    alias: {
-      "modernizr": getDir("./node_modules/foundation-sites/js/vendor/modernizr.js"),
-      "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js"),
-      "react": getDir("./node_modules/react/addons.js"),
-      "jquery": getDir("./node_modules/jquery/dist/jquery.js")
+
+    resolve: {
+      root: [
+        getDir("src"),
+        getDir('node_modules', 'foundation-sites', 'js', 'foundation')
+      ],
+      alias: {
+        "modernizr": getDir("./node_modules/foundation-sites/js/vendor/modernizr.js"),
+        "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js"),
+        "react": getDir("./node_modules/react/addons.js"),
+        "jquery": getDir("./node_modules/jquery/dist/jquery.js")
+      },
+      extensions: ["", ".js", ".scss"]
     },
-    extensions: ["", ".js", ".scss"]
-  },
 
-  progress: false, // Don't show progress 
-  // Defaults to true 
+    progress: false, // Don't show progress 
+    // Defaults to true 
 
-  failOnError: true, // don't report error to grunt if webpack find errors 
-  // Use this if webpack errors are tolerable and grunt should continue 
+    failOnError: true // don't report error to grunt if webpack find errors 
 
-  watch: true, // use webpacks watcher 
-  // You need to keep the grunt process alive 
-
-  keepalive: true, // don't finish the grunt task 
-  // Use this in combination with the watch option 
-
-  devtool: 'eval'
 };
+
+if (!isProd) {
+  cfg.watch = true;
+  cfg.keepalive = true;
+  cfg.devtool = 'eval';
+  cfg.jshint.devel = true;
+
+} else {
+  var plugins = [
+    new webpack.DefinePlugin({
+      'process.env': {
+        'NODE_ENV': process.env["NODE_ENV"]
+      }
+    }),
+
+    new webpack.optimize.UglifyJsPlugin({
+      mangle: true,
+      compress: {
+        warnings: false
+      },
+      output: {
+        comments:false,
+        space_colon: false
+      }
+    })
+  ];
+
+  cfg.plugins = cfg.plugins.concat(plugins);
+}
+
+module.exports = cfg;
