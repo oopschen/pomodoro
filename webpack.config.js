@@ -20,7 +20,7 @@ var cfg = {
   output: {
     path: getDir('./build'),
     filename: "./e/[name].js",
-    chunkFilename: './c/[chunkhash].js'
+    chunkFilename: './c/[id].js'
   },
 
   module: {
