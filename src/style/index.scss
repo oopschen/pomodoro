@@ -9,8 +9,8 @@ $alert-transition-speed: 560ms;
 @import "foundation/components/visibility";
 
 .font-time {
-  @media all and (min-width: 600px) {
-    font-size: rem-calc(224);
+  @media all and (min-width: 501px) {
+    font-size: rem-calc(124);
   }
 
   @media all and (max-width: 500px) {

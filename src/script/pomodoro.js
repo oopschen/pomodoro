@@ -48,16 +48,17 @@ pomo.prototype.next = function() {
   this._clear();
   if(ST_WORK === this._st) {
     if(this._state.lbMinThrd > this._wCnt) {
-      this._start(1, this._state.breakMin * 60, ST_BREAK);
+      this._start(1, Math.round(this._state.breakMin * 60), ST_BREAK);
 
     } else {
-      this._start(1, this._state.longBreakMin * 60, ST_LONG_BREAK);
+      this._wCnt = 0;
+      this._start(1, Math.round(this._state.longBreakMin * 60), ST_LONG_BREAK);
 
     }
 
   } else {
     this._wCnt ++;
-    this._start(1, this._state.workMin * 60, ST_WORK);
+    this._start(1, Math.round(this._state.workMin * 60), ST_WORK);
 
   }
 };
