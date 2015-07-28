@@ -2,6 +2,8 @@
 @import "foundation/components/type";
 @import "foundation/components/top-bar";
 @import "foundation/components/button-groups";
+$alert-font-size: rem-calc(18);
+$alert-transition-speed: 560ms;
 @import "foundation/components/alert-boxes";
 @import "foundation/components/panels";
 @import "foundation/components/visibility";
