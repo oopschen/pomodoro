@@ -14,7 +14,7 @@ require(['script/pomodoro'], function(Pomo) {
       CONST_UP_TIME = "timer.up";
 
   var optStore = require("rhaboo").persistent("pomodoro.optstore");
-  var notifySnd = require('file?name=[hash].[ext]!../snd/notify.mp3');
+  var notifySnd = require('../snd/notify.mp3');
   var player;
 
   //pomodoro instance
@@ -140,7 +140,7 @@ require(['script/pomodoro'], function(Pomo) {
         if (!player) {
           require(['jplayer'], function() {
             player = $('#player').jPlayer({
-              swfPath: require('file?name=[hash].[ext]!../../node_modules/jplayer/dist/jplayer/jquery.jplayer.swf'),
+              swfPath: require('../../node_modules/jplayer/dist/jplayer/jquery.jplayer.swf'),
               preload: 'auto',
               cssSelectorAncestor: "#playerC",
               volume: 1,

@@ -18,20 +18,22 @@ var cfg = {
   },
 
   output: {
-    path: getDir('./build/script'),
-    filename: "[name].js"
+    path: getDir('./build'),
+    filename: "./e/[name].js",
+    chunkFilename: './c/[id].js'
   },
 
   module: {
     loaders: [
       { test: /\.css$/, loader: "style!css"},
-      { test: /\.(jpeg|png|jpg)$/, loader: "url?limit=512" },
+      { test: /\.(jpeg|png|jpg)$/, loader: "url?limit=1024" },
       { test: /_jsx\.js/, loader: "jsx" },
       { 
         test: /\.scss$/,
         loader: "style!css!sass?outputStyle=expanded&" +
           "includePaths[]=" + getDir('node_modules', 'foundation-sites', 'scss')
-      }
+      },
+      { test: /\.(mp3|swf)$/, loader: "file?name=./f/[hash].[ext]" }
     ],
 
     postLoaders: [
@@ -84,7 +86,7 @@ if (!isProd) {
   var plugins = [
     new webpack.DefinePlugin({
       'process.env': {
-        'NODE_ENV': process.env["NODE_ENV"]
+        'NODE_ENV': "\"" + process.env["NODE_ENV"] + "\""
       }
     }),
 
