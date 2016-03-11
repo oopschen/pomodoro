@@ -14,16 +14,6 @@ module.exports = function(grunt) {
       src: ['Gruntfile.js', 'webpack.config.js']
     },
 
-    express: {
-      run: {
-        options: {
-          script: __dirname + '/server.js',
-          port: 5000,
-          delay:1000
-        }
-      }
-    },
-
     clean: {
       build: {
         src: ["./build/**/*"]
@@ -38,8 +28,14 @@ module.exports = function(grunt) {
       prod: {
         NODE_ENV: "production"
       }
+    },
+    
+    'gh-pages': {
+        options: {
+          base: 'build'
+        },
+        src: ['**']
     }
-
   });
 
   // These plugins provide necessary tasks.
@@ -48,17 +44,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-webpack');
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-env');
+  grunt.loadNpmTasks('grunt-gh-pages');
 
   var baseTask = ['clean:build', 'jshint'],
-      taskDev = ['env:dev', 'setup', 'express:run', 'webpack:serv'],
       taskProd = ['env:prod', 'setup', 'webpack:serv'];
-
-  // Default task.
-  grunt.registerTask('setup', function() {
-    grunt.config('webpack', {
-      serv: require(path.join(__dirname, "webpack.config.js"))
-    });
-  });
 
   grunt.registerTask('default', baseTask.concat(taskDev));
   grunt.registerTask('prod', baseTask.concat(taskProd));

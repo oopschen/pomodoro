@@ -4,7 +4,7 @@ var _ = require('underscore');
 
 var getDir = function() {
   var args = Array.prototype.slice.call(arguments);
-  return path.join.apply(path, [__dirname].concat(args));
+  return path.resolve.apply(path, [__dirname].concat(args));
 };
 
 var isProd = "production" === process.env["NODE_ENV"];
@@ -19,8 +19,9 @@ var cfg = {
 
   output: {
     path: getDir('./build'),
-    filename: "./e/[name].js",
-    chunkFilename: './c/[id].js'
+    filename: "[name].e.js",
+    chunkFilename: '[id].c.js',
+    publicPath: '/pomodoro/'
   },
 
   module: {
@@ -51,28 +52,28 @@ var cfg = {
     },
     require(path.join(__dirname, "jshintrc.js"))),
 
-    plugins: [
-      new webpack.optimize.OccurenceOrderPlugin(true)
+  plugins: [
+    new webpack.optimize.OccurenceOrderPlugin(true)
+  ],
+
+  resolve: {
+    root: [
+      getDir("src"),
+      getDir('node_modules', 'foundation-sites', 'js', 'foundation')
     ],
-
-    resolve: {
-      root: [
-        getDir("src"),
-        getDir('node_modules', 'foundation-sites', 'js', 'foundation')
-      ],
-      alias: {
-        "modernizr": getDir("./node_modules/foundation-sites/js/vendor/modernizr.js"),
-        "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js"),
-        "react": getDir("./node_modules/react/addons.js"),
-        "jquery": getDir("./node_modules/jquery/dist/jquery.js")
-      },
-      extensions: ["", ".js", ".scss"]
+    alias: {
+      "modernizr": getDir("./node_modules/foundation-sites/js/vendor/modernizr.js"),
+      "rhaboo": getDir("./node_modules/rhaboo/src/rocks/arr.js"),
+      "react": getDir("./node_modules/react/addons.js"),
+      "jquery": getDir("./node_modules/jquery/dist/jquery.js")
     },
+    extensions: ["", ".js", ".scss"]
+  },
 
-    progress: false, // Don't show progress 
-    // Defaults to true 
+  progress: false, // Don't show progress 
+  // Defaults to true 
 
-    failOnError: true // don't report error to grunt if webpack find errors 
+  failOnError: true // don't report error to grunt if webpack find errors 
 
 };
 
