@@ -16,40 +16,43 @@ module.exports = function(grunt) {
 
     clean: {
       build: {
-        src: ["./build/**/*"]
+        src: ["build/**/*"]
       }
     },
 
-    env: {
-      dev: {
-        NODE_ENV: "development"
-      },
-
-      prod: {
-        NODE_ENV: "production"
-      }
-    },
-    
     'gh-pages': {
         options: {
           base: 'build'
         },
-        src: ['**']
+        src: '**/*'
+    },
+
+    copy: {
+      html: {
+        expand: true,
+        cwd: 'src/html',
+        src: '**',
+        dest: 'build',
+      },
     }
+
   });
 
   // These plugins provide necessary tasks.
   grunt.loadNpmTasks('grunt-contrib-jshint');
-  grunt.loadNpmTasks('grunt-express-server');
-  grunt.loadNpmTasks('grunt-webpack');
   grunt.loadNpmTasks('grunt-contrib-clean');
-  grunt.loadNpmTasks('grunt-env');
+  grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-gh-pages');
 
-  var baseTask = ['clean:build', 'jshint'],
-      taskProd = ['env:prod', 'setup', 'webpack:serv'];
+  var baseTask = ['clean:build', 'jshint'];
 
-  grunt.registerTask('default', baseTask.concat(taskDev));
-  grunt.registerTask('prod', baseTask.concat(taskProd));
+  grunt.registerTask('default', baseTask, function() {
+    grunt.log.writeln('webpack-dev-server --content-base src/html');
+  });
+  
+  grunt.registerTask('prod-action', function() {
+    grunt.log.writeln('NODE_ENV=production webpack-dev-server --content-base src/html');
+  });
 
+  grunt.registerTask('prod', baseTask.concat(['copy:html', 'prod-action']));
 };
