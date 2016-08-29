@@ -4,6 +4,7 @@ require('fastclick');
 var $ = require('jquery');
 require('imports?jQuery=jquery!foundation');
 require('imports?jQuery=jquery!foundation.topbar');
+var Push = require('push.js');
 
 require(['script/pomodoro'], function(Pomo) {
   var React = require('react'),
@@ -13,8 +14,8 @@ require(['script/pomodoro'], function(Pomo) {
       CONST_SAVE_OPT = "opt.save",
       CONST_UP_TIME = "timer.up";
 
-  var optStore = require("rhaboo").persistent("pomodoro.optstore");
-  var notifySnd = require('../snd/notify.mp3');
+  var optStore = require("rhaboo").persistent("pomodoro.optstore"),
+      notifySnd = require('../snd/notify.mp3');
   var player;
 
   //pomodoro instance
@@ -135,6 +136,14 @@ require(['script/pomodoro'], function(Pomo) {
 
         }
         this.setState({min:paddingZero(0), sec: paddingZero(0), timeoutPrompt: tPrompt, tt:true});
+        Push.create(tPrompt, {
+          timeout: 20000,
+          icon: {
+            x16: require('../img/end_x16.png'),
+            x32: require('../img/end_x32.png')
+          },
+          body: 'Pomodoro Notification'
+        });
 
         // play sound
         if (!player) {
