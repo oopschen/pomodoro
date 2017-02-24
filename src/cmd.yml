@@ -1,0 +1,33 @@
+name: pomodoroutil
+version: '1.0'
+author: Ray <linxray@gmail.com>
+about: A command line pomodoro tool with customizable options and notify mechanism.
+args:
+    - break:
+        short: b
+        long: break
+        value_name: BREAK_TIME_SEC
+        help: Sets the break time seconds, default to 5 mins.
+        takes_value: true
+        default_value: '300'
+    - work:
+        short: w
+        long: work
+        value_name: WORK_TIME_SEC
+        help: Sets the work time seconds, default to 25 mins.
+        takes_value: true
+        default_value: '1500'
+    - longbreak:
+        short: l
+        long: longbreak
+        value_name: LONG_BREAK_TIME_SEC
+        help: Sets the long break time seconds, default to 15 mins.
+        takes_value: true
+        default_value: '900'
+    - longbreakthreadhold:
+        short: t
+        long: lthreadhold
+        value_name: LONG_BREAK_THREADHOLD
+        help: Sets the long break threadhold, default to 4 times.
+        takes_value: true
+        default_value: '4'
