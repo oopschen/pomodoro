@@ -6,3 +6,8 @@ authors = ["Ray <linxray@gmail.com>"]
 [dependencies.clap]
 version = "~2.20.3"
 features = ["yaml"]
+
+[dependencies]
+ncurses = "5.85.0"
+timer = "0.1.6"
+chrono = "0.3.0"

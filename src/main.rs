@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate clap;
+extern crate ncurses;
+
+mod pomodoro;
 
 fn main() {
     use clap::App;
@@ -13,4 +16,3 @@ fn main() {
              cmd_matches.value_of("longbreakthreadhold").unwrap()
              );
 }
-

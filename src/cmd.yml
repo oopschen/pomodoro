@@ -1,7 +1,7 @@
 name: pomodoroutil
 version: '1.0'
 author: Ray <linxray@gmail.com>
-about: A command line pomodoro tool with customizable options and notify mechanism.
+about: A command line pomodoro tool with customizable options and notify mechanism.Command **q**, **<space>**, **r** means quit, go to next step, reset all.
 args:
     - break:
         short: b
