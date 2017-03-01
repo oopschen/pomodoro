@@ -31,3 +31,9 @@ args:
         help: Sets the long break threadhold, default to 4 times.
         takes_value: true
         default_value: '4'
+    - notifycmd:
+        short: n
+        long: notifycmd
+        value_name: NOTIFY_CMD
+        help: Sets the absolute path of notify program.
+        takes_value: true

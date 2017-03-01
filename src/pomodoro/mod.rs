@@ -17,10 +17,10 @@ pub enum PSTATUS {
     LEND_BREAK,
 }
 
-pub struct PomodoroArgs {
-    work_ms: u16,
-    break_ms: u16,
-    lbreak_ms: u16,
+struct PomodoroArgs {
+    work_ms: u32,
+    break_ms: u32,
+    lbreak_ms: u32,
     thread_hold: u8,
 }
 
@@ -31,11 +31,16 @@ struct Pomodoro {
 }
 
 impl Pomodoro {
-    fn new(args: PomodoroArgs) -> Self {
+    fn new(work_ms: u32, break_ms: u32, lbreak_ms: u32, thread_hold:u8) -> Self {
         Pomodoro {
             _cur_phase: RefCell::new(PSTATUS::INIT),
             _work_times: Cell::new(0),
-            args: args,
+            args: PomodoroArgs {
+                work_ms: work_ms,
+                break_ms: break_ms,
+                lbreak_ms: lbreak_ms,
+                thread_hold: thread_hold,
+            },
         }
     }
 
