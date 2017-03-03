@@ -8,6 +8,8 @@ mod pomodoro;
 use std::char;
 use std::io::Write;
 use std::thread;
+use std::process::Command;
+use std::process::Stdio;
 use std::sync::mpsc::channel;
 use std::option::Option;
 use ncurses::*;
@@ -27,6 +29,9 @@ const CMD_NEXT:u8 = 0;
 const CMD_RESET:u8 = 1;
 const CMD_QUIT:u8 = 2;
 const CMD_TIMEOUT:u8 = 255;
+
+const PMPT_STAGE: &'static str = "sg";
+const PMPT_STATUS: &'static str = "st";
 
 fn main() {
     use clap::App;
@@ -76,9 +81,6 @@ fn main() {
         }
     };
 
-    println!("Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.\n",
-             lbms, lb_thold, wms, bms);
-
     run_pomodoro((wms, bms, lbms, lb_thold), notify_progs);
 }
 
@@ -89,7 +91,11 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
     // new channel
     // clone  tx for chlid timer
     // spawn a thread run pomodoro 
-    // listen on input
+     
+    // init term
+    initscr();
+    noecho();
+    print_prompt();
      
     let (tx_input, rx) = channel::<u8>();
     let tx_timer = tx_input.clone();
@@ -120,7 +126,6 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
         let tr = timer::MessageTimer::new(tx_timer);
         let pomodo = pomodoro::Pomodoro::new(time_args.0, time_args.1, time_args.2, time_args.3);
         let mut hdl: Option<timer::Guard> = Option::None;
-        let cmd:u8;
 
         loop {
             let cmd = rx.recv().unwrap();
@@ -135,10 +140,20 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
                 CMD_NEXT => {
                     let st = pomodo.next_step(); 
                     match st {
-                        PSTATUS::START_WORK | PSTATUS::START_BREAK | PSTATUS::LSTART_BREAK => {
+                        PSTATUS::StartWork | PSTATUS::StartBreak | PSTATUS::LStartBreak => {
+                            let (sg, sta) = match st {
+                                PSTATUS::StartWork => ("Work", "Started"),
+                                PSTATUS::StartBreak => ("Break", "Started"),
+                                PSTATUS::LStartBreak => ("Long Break", "Started"),
+                                _ => ("Unknown", "Undefined")
+
+                            };
+
                             hdl = Option::Some(tr.schedule_with_delay(
                                     chrono::Duration::milliseconds(pomodo.get_ms(st) as i64),
                                     CMD_TIMEOUT));
+
+                            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, sg).replace(PMPT_STATUS, sta));
                         },
 
                         _ => {},
@@ -149,14 +164,29 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
 
                 CMD_TIMEOUT => {
                     let st = pomodo.next_step();
-                    // TODO call notify progs
+                    // call notify progs
                     if "" != notify_progs_clone {
+                        match st {
+                            PSTATUS::EndWork => {
+                                run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "End"));
+                            },
 
+                            PSTATUS::EndBreak => {
+                                run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "End"));
+                            },
+
+                            PSTATUS::LEndBreak => {
+                                run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long Break").replace(PMPT_STATUS, "End"));
+                            },
+
+                            _ => {}
+                        }
                     }
                 },
 
                 CMD_RESET => {
                     pomodo.reset();
+                    run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Reset ").replace(PMPT_STATUS, "Done"));
                 },
 
                 _ => continue,
@@ -166,23 +196,20 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
     // end thread
 
     // listen on char input
-    // init term
-    let window = initscr();
-    raw();
-    noecho();
-
     loop {
         let cr = getch();
 
         if ERR == cr {
-            // TODO
+            clear_screen();
+            print_help(time_args);
             continue;
         }
 
         let char_str = match char::from_u32(cr as u32) {
             Some(ch) => ch,
             None => {
-                // TODO
+                clear_screen();
+                print_help(time_args);
                 continue;
             }
 
@@ -191,7 +218,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
         match char_str {
             'q' | 'Q' => {
                 tx_input.send(CMD_QUIT).unwrap();
-                pomodoro_thread.join();
+                pomodoro_thread.join().unwrap();
                 break;
             },
 
@@ -199,10 +226,51 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
             'r' | 'R' => tx_input.send(CMD_RESET).unwrap(),
 
             _ => {
-                // TODO show help
+                clear_screen();
+                print_help(time_args);
             }
         }
     }
 
     endwin();
+}
+
+fn run_notify_command(progs: String) {
+    let mut splits_by_space = progs.split_whitespace();
+    let mut cmd_builder: Command;
+
+    if let Some(prog) = splits_by_space.next() {
+        cmd_builder = Command::new(prog);
+        cmd_builder.stderr(Stdio::null()).stdout(Stdio::null());
+    } else {
+        return ();
+    }
+
+    while let Some(arg) = splits_by_space.next() {
+        cmd_builder.arg(arg);
+    }
+
+    cmd_builder.spawn().unwrap();
+}
+
+fn print_prompt() {
+    printw(format!("Command me[n/N/r/R/q/Q]:").as_ref());
+    refresh();
+}
+
+fn print_help(time_args: PTime) {
+    printw(format!("Help list:\n
+            \tn/N\t\t\tGo to the next step\n
+            r/R\t\t\tReset the pomodoro\n
+            q/Q\t\t\tQuit the programs\n
+            Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.\n
+            ", time_args.2, time_args.3, time_args.0, time_args.1
+            ).as_ref());
+    refresh();
+    print_prompt();
+}
+
+fn clear_screen() {
+    clear();
+    refresh();
 }

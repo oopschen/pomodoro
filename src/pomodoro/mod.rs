@@ -2,19 +2,18 @@
 /// no thread, no timer
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::clone::Clone;
 
 pub enum PSTATUS {
     INIT,
 
-    START_WORK,
-    END_WORK,
+    StartWork,
+    EndWork,
 
-    START_BREAK,
-    END_BREAK,
+    StartBreak,
+    EndBreak,
 
-    LSTART_BREAK,
-    LEND_BREAK,
+    LStartBreak,
+    LEndBreak,
 }
 
 struct PomodoroArgs {
@@ -52,58 +51,58 @@ impl Pomodoro {
 
     // return next step status
     pub fn next_step(&self) -> PSTATUS {
-        // if init || LEND_BREAK || END_BREAK:
-        //  _cur_phase = START_WORK
+        // if init || LEndBreak || EndBreak:
+        //  _cur_phase = StartWork
         //  incre work times
         //  
-        // else if START_WORK:
-        //  _cur_phase = END_WORK
+        // else if StartWork:
+        //  _cur_phase = EndWork
         //  
-        // else if END_WORK:
+        // else if EndWork:
         //  if not reach thread hold
-        //      _cur_phase = START_BREAK
+        //      _cur_phase = StartBreak
         //  else
-        //      _cur_phase = LSTART_BREAK
+        //      _cur_phase = LStartBreak
         //      clear work times
         //  
-        // else if START_BREAK:
-        //  _cur_phase = END_BREAK
+        // else if StartBreak:
+        //  _cur_phase = EndBreak
         //  
-        // else if LSTART_BREAK:
-        //  _cur_phase = LEND_BREAK
+        // else if LStartBreak:
+        //  _cur_phase = LEndBreak
         match *self._cur_phase.borrow() {
-            PSTATUS::INIT | PSTATUS::LEND_BREAK | PSTATUS::END_BREAK => {
-                *self._cur_phase.borrow_mut() = PSTATUS::START_WORK;
+            PSTATUS::INIT | PSTATUS::LEndBreak | PSTATUS::EndBreak => {
+                *self._cur_phase.borrow_mut() = PSTATUS::StartWork;
                 self._work_times.set(self._work_times.get() + 1);
-                PSTATUS::START_WORK
+                PSTATUS::StartWork
             },
 
-            PSTATUS::START_WORK => {
-                *self._cur_phase.borrow_mut() = PSTATUS::END_WORK;
-                PSTATUS::END_WORK
+            PSTATUS::StartWork => {
+                *self._cur_phase.borrow_mut() = PSTATUS::EndWork;
+                PSTATUS::EndWork
             },
 
-            PSTATUS::END_WORK => {
+            PSTATUS::EndWork => {
                 if self.args.thread_hold > self._work_times.get() {
-                    *self._cur_phase.borrow_mut() = PSTATUS::START_BREAK;
-                    PSTATUS::START_BREAK
+                    *self._cur_phase.borrow_mut() = PSTATUS::StartBreak;
+                    PSTATUS::StartBreak
 
                 } else {
-                    *self._cur_phase.borrow_mut() = PSTATUS::LSTART_BREAK;
+                    *self._cur_phase.borrow_mut() = PSTATUS::LStartBreak;
                     self._work_times.set(0);
-                    PSTATUS::LSTART_BREAK
+                    PSTATUS::LStartBreak
 
                 }
             },
 
-            PSTATUS::START_BREAK => {
-                *self._cur_phase.borrow_mut() = PSTATUS::END_BREAK;
-                PSTATUS::END_BREAK
+            PSTATUS::StartBreak => {
+                *self._cur_phase.borrow_mut() = PSTATUS::EndBreak;
+                PSTATUS::EndBreak
             },
 
-            PSTATUS::LSTART_BREAK => {
-                *self._cur_phase.borrow_mut() = PSTATUS::LEND_BREAK;
-                PSTATUS::LEND_BREAK
+            PSTATUS::LStartBreak => {
+                *self._cur_phase.borrow_mut() = PSTATUS::LEndBreak;
+                PSTATUS::LEndBreak
             },
         }
     }
@@ -111,20 +110,20 @@ impl Pomodoro {
     pub fn status(&self) -> PSTATUS {
         match *self._cur_phase.borrow() {
             PSTATUS::INIT => PSTATUS::INIT,
-            PSTATUS::START_WORK => PSTATUS::START_WORK,
-            PSTATUS::END_WORK => PSTATUS::END_WORK,
-            PSTATUS::START_BREAK => PSTATUS::START_BREAK,
-            PSTATUS::END_BREAK => PSTATUS::END_BREAK,
-            PSTATUS::LSTART_BREAK => PSTATUS::LSTART_BREAK,
-            PSTATUS::LEND_BREAK => PSTATUS::LEND_BREAK,
+            PSTATUS::StartWork => PSTATUS::StartWork,
+            PSTATUS::EndWork => PSTATUS::EndWork,
+            PSTATUS::StartBreak => PSTATUS::StartBreak,
+            PSTATUS::EndBreak => PSTATUS::EndBreak,
+            PSTATUS::LStartBreak => PSTATUS::LStartBreak,
+            PSTATUS::LEndBreak => PSTATUS::LEndBreak,
         }
     }
 
     pub fn get_ms(&self, st: PSTATUS) -> u32 {
         match st {
-            PSTATUS::START_WORK => self.args.work_ms,
-            PSTATUS::START_BREAK => self.args.break_ms,
-            PSTATUS::LSTART_BREAK => self.args.lbreak_ms,
+            PSTATUS::StartWork => self.args.work_ms,
+            PSTATUS::StartBreak => self.args.break_ms,
+            PSTATUS::LStartBreak => self.args.lbreak_ms,
             _ => 100,
         }
     }
