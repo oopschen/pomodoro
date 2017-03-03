@@ -184,5 +184,7 @@ mod tests {
             PSTATUS::StartWork => assert!(true),
             _ => assert!(false),
         }
+
+        assert_eq!(100, pomo.get_ms(PSTATUS::StartWork));
     }
 }
