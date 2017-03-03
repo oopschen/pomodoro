@@ -174,5 +174,15 @@ mod tests {
             PSTATUS::LStartBreak => assert!(true),
             _ => assert!(false),
         }
+
+        match pomo.next_step() {
+            PSTATUS::LEndBreak => assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::StartWork => assert!(true),
+            _ => assert!(false),
+        }
     }
 }
