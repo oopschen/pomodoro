@@ -24,14 +24,14 @@ struct PomodoroArgs {
     thread_hold: u8,
 }
 
-struct Pomodoro {
+pub struct Pomodoro {
     _cur_phase: RefCell<PSTATUS>,
     _work_times: Cell<u8>,
     args: PomodoroArgs,
 }
 
 impl Pomodoro {
-    fn new(work_ms: u32, break_ms: u32, lbreak_ms: u32, thread_hold:u8) -> Self {
+    pub fn new(work_ms: u32, break_ms: u32, lbreak_ms: u32, thread_hold:u8) -> Self {
         Pomodoro {
             _cur_phase: RefCell::new(PSTATUS::INIT),
             _work_times: Cell::new(0),
@@ -44,15 +44,14 @@ impl Pomodoro {
         }
     }
 
-    fn reset(&self) -> bool {
+    pub fn reset(&self) -> bool {
         *self._cur_phase.borrow_mut() = PSTATUS::INIT;
         self._work_times.set(0);
         true
     }
 
     // return next step status
-    fn next_step(&self) -> PSTATUS {
-        // TODO
+    pub fn next_step(&self) -> PSTATUS {
         // if init || LEND_BREAK || END_BREAK:
         //  _cur_phase = START_WORK
         //  incre work times
@@ -109,7 +108,7 @@ impl Pomodoro {
         }
     }
 
-    fn status(&self) -> PSTATUS {
+    pub fn status(&self) -> PSTATUS {
         match *self._cur_phase.borrow() {
             PSTATUS::INIT => PSTATUS::INIT,
             PSTATUS::START_WORK => PSTATUS::START_WORK,
@@ -118,6 +117,15 @@ impl Pomodoro {
             PSTATUS::END_BREAK => PSTATUS::END_BREAK,
             PSTATUS::LSTART_BREAK => PSTATUS::LSTART_BREAK,
             PSTATUS::LEND_BREAK => PSTATUS::LEND_BREAK,
+        }
+    }
+
+    pub fn get_ms(&self, st: PSTATUS) -> u32 {
+        match st {
+            PSTATUS::START_WORK => self.args.work_ms,
+            PSTATUS::START_BREAK => self.args.break_ms,
+            PSTATUS::LSTART_BREAK => self.args.lbreak_ms,
+            _ => 100,
         }
     }
 
