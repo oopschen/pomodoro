@@ -70,25 +70,26 @@ impl Pomodoro {
         //  
         // else if LStartBreak:
         //  _cur_phase = LEndBreak
-        match *self._cur_phase.borrow() {
+        let mut phase = self._cur_phase.borrow_mut();
+        match *phase {
             PSTATUS::INIT | PSTATUS::LEndBreak | PSTATUS::EndBreak => {
-                *self._cur_phase.borrow_mut() = PSTATUS::StartWork;
-                self._work_times.set(self._work_times.get() + 1);
+                *phase = PSTATUS::StartWork;
                 PSTATUS::StartWork
             },
 
             PSTATUS::StartWork => {
-                *self._cur_phase.borrow_mut() = PSTATUS::EndWork;
+                *phase = PSTATUS::EndWork;
                 PSTATUS::EndWork
             },
 
             PSTATUS::EndWork => {
                 if self.args.thread_hold > self._work_times.get() {
-                    *self._cur_phase.borrow_mut() = PSTATUS::StartBreak;
+                    self._work_times.set(self._work_times.get() + 1);
+                    *phase = PSTATUS::StartBreak;
                     PSTATUS::StartBreak
 
                 } else {
-                    *self._cur_phase.borrow_mut() = PSTATUS::LStartBreak;
+                    *phase = PSTATUS::LStartBreak;
                     self._work_times.set(0);
                     PSTATUS::LStartBreak
 
@@ -96,12 +97,12 @@ impl Pomodoro {
             },
 
             PSTATUS::StartBreak => {
-                *self._cur_phase.borrow_mut() = PSTATUS::EndBreak;
+                *phase = PSTATUS::EndBreak;
                 PSTATUS::EndBreak
             },
 
             PSTATUS::LStartBreak => {
-                *self._cur_phase.borrow_mut() = PSTATUS::LEndBreak;
+                *phase = PSTATUS::LEndBreak;
                 PSTATUS::LEndBreak
             },
         }
@@ -128,4 +129,50 @@ impl Pomodoro {
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Pomodoro;
+    use super::PSTATUS;
+
+    #[test]
+    fn main() {
+        let pomo = Pomodoro::new(100, 1000, 1000, 1);
+
+        match pomo.next_step() {
+            PSTATUS::StartWork => assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::EndWork => assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::StartBreak => assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::EndBreak => assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::StartWork=> assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::EndWork => assert!(true),
+            _ => assert!(false),
+        }
+
+        match pomo.next_step() {
+            PSTATUS::LStartBreak => assert!(true),
+            _ => assert!(false),
+        }
+    }
 }
