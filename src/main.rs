@@ -259,13 +259,13 @@ fn print_prompt() {
 }
 
 fn print_help(time_args: PTime) {
-    printw(format!("Help list:\n
-            \tn/N\t\t\tGo to the next step\n
-            r/R\t\t\tReset the pomodoro\n
-            q/Q\t\t\tQuit the programs\n
-            Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.\n
-            ", time_args.2, time_args.3, time_args.0, time_args.1
-            ).as_ref());
+    printw(format!("\
+Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.
+Help list:
+    n/N\t\t\tGo to the next step
+    r/R\t\t\tReset the pomodoro
+    q/Q\t\t\tQuit the programs\n",
+    time_args.2, time_args.3, time_args.0, time_args.1).as_ref());
     refresh();
     print_prompt();
 }
