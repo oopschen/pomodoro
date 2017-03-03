@@ -144,7 +144,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
                             let (sg, sta) = match st {
                                 PSTATUS::StartWork => ("Work", "Started"),
                                 PSTATUS::StartBreak => ("Break", "Started"),
-                                PSTATUS::LStartBreak => ("Long Break", "Started"),
+                                PSTATUS::LStartBreak => ("Long-Break", "Started"),
                                 _ => ("Unknown", "Undefined")
 
                             };
@@ -156,13 +156,32 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
                             run_notify_command(notify_progs_clone.replace(PMPT_STAGE, sg).replace(PMPT_STATUS, sta));
                         },
 
-                        _ => {},
+                        PSTATUS::EndWork => {
+                            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "Stopped"));
+                        },
+
+                        PSTATUS::EndBreak => {
+                            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "Stopped"));
+                        },
+
+                        PSTATUS::LEndBreak => {
+                            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "Stopped"));
+                        },
+
+                        _ => {
+                            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Unknow").replace(PMPT_STATUS, "Undefined"));
+                        },
                     }
                 },
 
                 CMD_QUIT => break,
 
                 CMD_TIMEOUT => {
+                    match pomodo.status() {
+                        PSTATUS::StartWork | PSTATUS::StartBreak | PSTATUS::LStartBreak => {},
+                        _ => continue,
+                    };
+
                     let st = pomodo.next_step();
                     // call notify progs
                     if "" != notify_progs_clone {
@@ -176,7 +195,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
                             },
 
                             PSTATUS::LEndBreak => {
-                                run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long Break").replace(PMPT_STATUS, "End"));
+                                run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "End"));
                             },
 
                             _ => {}
@@ -186,7 +205,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
 
                 CMD_RESET => {
                     pomodo.reset();
-                    run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Reset ").replace(PMPT_STATUS, "Done"));
+                    run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Reset").replace(PMPT_STATUS, "Done"));
                 },
 
                 _ => continue,
