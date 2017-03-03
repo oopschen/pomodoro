@@ -215,6 +215,9 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str) {
 
         };
 
+        // print to terminal
+        printw(format!("{}", char_str).as_ref());
+
         match char_str {
             'q' | 'Q' => {
                 tx_input.send(CMD_QUIT).unwrap();
