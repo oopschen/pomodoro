@@ -30,8 +30,8 @@ const CMD_RESET:u8 = 1;
 const CMD_QUIT:u8 = 2;
 const CMD_TIMEOUT:u8 = 255;
 
-const PMPT_STAGE: &'static str = "sg";
-const PMPT_STATUS: &'static str = "st";
+const PMPT_STAGE: &'static str = "{sg}";
+const PMPT_STATUS: &'static str = "{st}";
 
 fn main() {
     use clap::App;
