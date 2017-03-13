@@ -37,3 +37,24 @@ args:
         value_name: NOTIFY_CMD
         help: Sets the absolute path of notify program.
         takes_value: true
+    - maxuser:
+        short: u
+        long: maxuser
+        value_name: MAX USER
+        help: Sets the max pomodoro that can be created at one time.
+        takes_value: true
+        default_value: '16'
+    - host:
+        short: h
+        long: host
+        value_name: host
+        help: Sets the host listen to.
+        takes_value: true
+        default_value: '127.0.0.1'
+    - port:
+        short: p
+        long: port
+        value_name: port
+        help: Sets the port listen to.
+        takes_value: true
+        default_value: '5678'

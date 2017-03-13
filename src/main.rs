@@ -81,10 +81,40 @@ fn main() {
         }
     };
 
-    run_pomodoro((wms, bms, lbms, lb_thold), notify_progs);
+    let host = cmd_matches.value_of("host").unwrap();
+
+    let port = match cmd_matches.value_of("port").unwrap().parse::<u16>() {
+        Ok(v) => {
+            if v < 1024 {
+                errprint!("port must be in range 1024 - 65536");
+                return;
+            }
+            v
+        },
+        Err(e) => {
+            errprint!("port can't be parse as integer, {}.", e);
+            return;
+        }
+    };
+
+    let maxp = match cmd_matches.value_of("maxuser").unwrap().parse::<u16>() {
+        Ok(v) => {
+            if v < 1 {
+                errprint!("There must exists some pomodoro.");
+            }
+            v
+        },
+
+        Err(e) => {
+            errprint!("invalid format for maxuser, {}.", e);
+            return;
+        }
+    };
+
+    run_pomodoro((wms, bms, lbms, lb_thold), notify_progs, host, port, maxp);
 }
 
-fn run_pomodoro(time_args: PTime, notify_progs: &str) {
+fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, maxp: u16) {
     // child thread is responsible for pomodoro logic
     // main thread is responsible for listen input from keyboard and output
     // 
