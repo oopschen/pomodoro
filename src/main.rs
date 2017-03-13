@@ -43,7 +43,7 @@ macro_rules! dereg(
     ( $holder:expr, $i:ident, $poll:ident) => {
         match $holder[$i-1] {
             Some(ref h) => {
-                match h.hdl.get() {
+                match *h.hdl.borrow() {
                     Some(hl) => {
                         match $poll.deregister(hl) {
                             Ok(_) => {},
@@ -64,7 +64,7 @@ macro_rules! cleanup_holder(
     ( $holder:expr ) => {
         match $holder {
             Some(ref h) => {
-                h.hdl.set(None);
+                *h.hdl.borrow_mut() = None;
                 *h.stream.borrow_mut() = None;
             },
             None => {},
@@ -78,21 +78,24 @@ type PTime = (u32, u32, u32, u8);
 struct PomodoroHolder<'a> {
     pomo: Pomodoro,
     addr: Cell<SocketAddr>,
-    msg: Cell<Option<String>>,
-    hdl: Cell<Option<&'a Evented>>,
+    msg: RefCell<Option<String>>,
+    hdl: RefCell<Option<&'a Evented>>,
     stream: RefCell<Option<TcpStream>>,
+    _buf: RefCell<Option<Vec<u8>>>,
 }
 
 enum PollAction {
     EXIT(usize), // dereg, close
     CONT, // do nothing continue
     DEREG(usize), // deregister
+    ADD_READ_WRITE(usize),
 }
 
 const CMD_NEXT:u8 = 0;
 const CMD_RESET:u8 = 1;
 const CMD_QUIT:u8 = 2;
 const CMD_TIMEOUT:u8 = 255;
+const SERVER_TOKEN: usize = 0;
 
 const PMPT_STAGE: &'static str = "{sg}";
 const PMPT_STATUS: &'static str = "{st}";
@@ -196,16 +199,10 @@ fn parse_listen_address(host: &str, port: u16) -> SocketAddr {
 fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, maxp: u16) {
     let sock_addr = parse_listen_address(host, port);
     let mut holder_arr: Vec<Option<PomodoroHolder>> = Vec::new();
-    let mut avail_index: VecDeque<u16> = VecDeque::with_capacity(maxp as usize);
-    for _ in 0..maxp {
+    let mut avail_index: VecDeque<usize> = VecDeque::with_capacity(maxp as usize);
+    for i in 0..maxp {
         holder_arr.push(None);
-        /*
-           holder_arr.push(PomodoroHolder {
-           pomo: Pomodoro::new(time_args.0, time_args.1, time_args.2, time_args.3),
-           addr: Cell::new(sock_addr),
-           msg: RefCell::new("".to_string()),
-           });
-           */
+        avail_index.push_back(i as usize);
     }
 
     let listener = match TcpListener::bind(&sock_addr) {
@@ -227,9 +224,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
         }
     };
 
-    let server_token = 0;
-
-    match poll.register(&listener, Token(server_token), Ready::readable()|Ready::writable(), PollOpt::level()) {
+    match poll.register(&listener, Token(SERVER_TOKEN), Ready::readable()|Ready::writable(), PollOpt::level()) {
         Ok(_) => {},
         Err(e) => {
             errprint!("register listener fail, {}", e);
@@ -250,7 +245,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
             match evts.get(i) {
                 None => continue,
                 Some(evt) => {
-                    match dispatch_event(time_args, &evt, &mut holder_arr, &mut avail_index) {
+                    match dispatch_event(time_args, &evt, &mut holder_arr, &mut avail_index, &listener) {
                         PollAction::EXIT(inx) => {
                             dereg!(&holder_arr, inx, poll);
                             cleanup_holder!(holder_arr[inx]);
@@ -261,6 +256,15 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
                         PollAction::DEREG(inx) => {
                             dereg!(&holder_arr, inx, poll);
                         },
+
+                        PollAction::ADD_READ_WRITE(inx) => {
+                            if let Some(ref pomo) = holder_arr[inx] {
+                                if let Some(hdl) = *pomo.hdl.borrow() {
+                                    poll.register(hdl, Token(inx),
+                                        Ready::readable()|Ready::writable(), PollOpt::level()).unwrap();
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -471,7 +475,68 @@ fn run_notify_command(progs: String) {
    }
    */
 
-fn dispatch_event(time_args: PTime, evt: &Event, holders: &mut Vec<Option<PomodoroHolder>>, avails: &mut VecDeque<u16>) -> PollAction {
-    PollAction::CONT
+fn dispatch_event(time_args: PTime, evt: &Event, 
+                  holders: &mut Vec<Option<PomodoroHolder>>, 
+                  avails: &mut VecDeque<usize>, listener: &TcpListener) -> PollAction {
+    // if token is server
+    //  is reable:
+    //      write help message
+    //      get next index
+    //      if none:
+    //          write error message
+    //      new pomodoro
+    //      set up holder
+    // else if is wriable && message is not null
+    //  write message
+    // else if is reaable
+    //  read to eof
+    let Token(token) = evt.token();
+    let mut read_buf: [u8; 2048] = [0; 2048];
+    match token {
+        0 => {
+            // server token
+            if !evt.readiness().is_readable() {
+                return PollAction::CONT;
+            }
 
+            match listener.accept() {
+                Ok((ref mut stream, addr)) => {
+                    let inx = match avails.pop_front() {
+                        Some(i) => i,
+                        None => {
+                            stream.write("Max user reached, please increament it.\n".to_string().as_bytes()).unwrap();
+                            return PollAction::CONT;
+                        }
+                    };
+
+                    // write hello message
+                    let hello_msg = format!("Hello, You! Welcome to Pomodoro.\nPress 'h/H' for help\n");
+                    stream.write(hello_msg.to_string().as_bytes()).unwrap();
+                    // new holder
+                    holders[inx] = Some(PomodoroHolder {
+                       pomo: Pomodoro::new(time_args.0, time_args.1, time_args.2, time_args.3),
+                       addr: Cell::new(addr),
+                       msg: RefCell::new(None),
+                       hdl: RefCell::new(None),
+                       stream: RefCell::new(None),
+                       _buf: RefCell::new(None),
+                    });
+
+                    PollAction::ADD_READ_WRITE(inx)
+                },
+
+                Err(e) => {
+                    errprint!("accept fail, {}", e);
+                    PollAction::CONT
+                },
+
+            }
+        },
+
+        x if x > 1 => {
+            PollAction::CONT
+        },
+
+        _ => PollAction::DEREG(token),
+    }
 }
