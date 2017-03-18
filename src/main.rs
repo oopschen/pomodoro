@@ -211,8 +211,10 @@ fn parse_listen_address(host: &str, port: u16) -> SocketAddr {
 fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, maxp: usize) {
     let sock_addr = parse_listen_address(host, port);
     let mut holder_arr: Vec<Option<PomodoroHolder>> = Vec::new();
-    let mut avail_index: VecDeque<usize> = VecDeque::with_capacity(maxp);
-    for i in 0..maxp {
+    let max_pomo_num = maxp + 1;
+    // trick: 0 means server, others means pomodoro
+    let mut avail_index: VecDeque<usize> = VecDeque::with_capacity(max_pomo_num); 
+    for i in 1..max_pomo_num {
         holder_arr.push(None);
         avail_index.push_back(i);
     }
@@ -257,7 +259,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
             match evts.get(i) {
                 None => continue,
                 Some(evt) => {
-                    match dispatch_event(time_args, &evt, &mut holder_arr, &mut avail_index, &listener, maxp) {
+                    match dispatch_event(time_args, &evt, &mut holder_arr, &mut avail_index, &listener, max_pomo_num) {
                         PollAction::EXIT(inx) => {
                             dereg!(&holder_arr, inx, poll);
                             cleanup_holder!(holder_arr[inx]);
@@ -270,7 +272,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
                         PollAction::AddRW(inx) => {
                             if let Some(ref pomo) = holder_arr[inx] {
                                 if let Some(ref stream) = *pomo.stream.borrow() {
-                                    poll.register(stream, Token(inx+1),
+                                    poll.register(stream, Token(inx),
                                     Ready::readable()|Ready::writable(), PollOpt::level()).unwrap();
 
                                 } else {
@@ -280,7 +282,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
 
                                 // reg timerd
                                 if let Some(ref timerfd) = *pomo._timerfd.borrow() {
-                                    poll.register(timerfd, Token(inx+1+maxp),
+                                    poll.register(timerfd, Token(inx+maxp),
                                     Ready::readable(), PollOpt::level()).unwrap();
 
                                 } else {
@@ -564,8 +566,8 @@ fn run_notify_command(progs: String) {
                         }
                     },
 
-                    x if x > 0 && x <= maxp => {
-                        if let Some(ref hdl) = holders[x-1] {
+                    x if x > 0 && x < maxp => {
+                        if let Some(ref hdl) = holders[x] {
                             deal_stream_token(hdl, x, evt)
                         } else {
                             PollAction::EXIT(x)
@@ -573,7 +575,7 @@ fn run_notify_command(progs: String) {
                     },
 
                     y if y > maxp => {
-                        if let Some(ref hdl) = holders[y-maxp-1] {
+                        if let Some(ref hdl) = holders[y-maxp] {
                             deal_timer_token(hdl, y)
                         } else {
                             PollAction::EXIT(y)
