@@ -527,7 +527,8 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
                 match stream.write_all(v.as_bytes()) {
                     Ok(_) => {},
                     Err(e) => {
-                        errprint!("Write msg {}", e);
+                        errprint!("Write msg {} for {}", e, inx);
+                        return PollAction::EXIT(inx);
                     }
                 }
             }
