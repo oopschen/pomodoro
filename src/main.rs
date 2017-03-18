@@ -630,6 +630,10 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
                                 (PollAction::CONT, "Long Break time started".to_string())
                             },
 
+                            PSTATUS::EndWork => (PollAction::CONT, "Work time cancelled".to_string()),
+                            PSTATUS::EndBreak => (PollAction::CONT, "Break time cancelled".to_string()),
+                            PSTATUS::LEndBreak => (PollAction::CONT, "Long Break time cancelled".to_string()),
+
                             _ => {
                                 (PollAction::EXIT(inx), "Status incorrect, please restart the program".to_string())
                             }
@@ -662,7 +666,7 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
     Help list:
     n/N\t\t\tGo to the next step
     r/R\t\t\tReset the pomodoro
-    q/Q\t\t\tQuit the programs\n",
+    q/Q\t\t\tQuit the programs",
     holder.pomo.get_ms(PSTATUS::LStartBreak), 
     holder.pomo.get_thread_hold(),
     holder.pomo.get_ms(PSTATUS::StartWork), 
@@ -683,7 +687,9 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
         }
 
     } else if evt.readiness().is_writable() {
-        if let Some(ref v) = holder.msg.borrow_mut().take() {
+        if let Some(ref mut v) = holder.msg.borrow_mut().take() {
+            // add newline
+            v.push('\n');
             if let Some(ref mut stream) = *holder.stream.borrow_mut() {
                 match stream.write_all(v.as_bytes()) {
                     Ok(_) => {},
