@@ -1,5 +1,5 @@
 # Summary
-A simple pomodoro implementation using rust.
+A simple pomodoro implementation using rust, supporting multiple pomodoro instance.
 
 # Usage:
 
@@ -9,3 +9,10 @@ A simple pomodoro implementation using rust.
 **{sg}** means current stage: work, break, long break<br/>
 **{st}** means current status: stopped, done...<br/>
 
+## Connect to 
+
+```
+ nv -vn 127.0.0.1 5678
+```
+
+Then follow the prompts.
