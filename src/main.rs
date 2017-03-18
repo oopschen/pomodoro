@@ -40,7 +40,7 @@ macro_rules! errprint(
 
 macro_rules! dereg(
     ( $holder:expr, $i:ident, $poll:ident) => {
-        match $holder[$i-1] {
+        match $holder[$i] {
             Some(ref h) => {
                 match *h.stream.borrow() {
                     Some(ref hl) => {
@@ -90,9 +90,15 @@ struct PomodoroHolder {
 }
 
 enum PollAction {
-    EXIT(usize), // dereg, close
-        CONT, // do nothing continue
-        AddRW(usize), // add read and write
+    // dereg, close
+    EXIT(usize), 
+    // do nothing continue
+    CONT, 
+    // reg event
+    REG(usize, Ready, PollOpt),
+    //reregister
+    REREG(usize, Ready, PollOpt),
+
 }
 
 #[derive(Debug)]
@@ -236,7 +242,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
         }
     };
 
-    match poll.register(&listener, Token(SERVER_TOKEN), Ready::readable()|Ready::writable(), PollOpt::level()) {
+    match poll.register(&listener, Token(SERVER_TOKEN), Ready::readable(), PollOpt::edge()) {
         Ok(_) => {},
         Err(e) => {
             errprint!("register listener fail, {}", e);
@@ -263,28 +269,31 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
                         &listener, max_pomo_num,
                         notify_progs) {
                         PollAction::EXIT(inx) => {
-                            dereg!(&holder_arr, inx, poll);
-                            cleanup_holder!(holder_arr[inx]);
-                            avail_index.push_back(inx);
-                            println!("Close pomodoro for {}", inx);
+                            let real_inx = real_index(inx, max_pomo_num);
+                            dereg!(&holder_arr, real_inx, poll);
+                            cleanup_holder!(holder_arr[real_inx]);
+                            avail_index.push_back(real_inx);
+                            println!("Close pomodoro for {}", real_inx);
                         },
 
                         PollAction::CONT => {},
 
-                        PollAction::AddRW(inx) => {
-                            if let Some(ref pomo) = holder_arr[inx] {
+                        PollAction::REG(inx, ready, opt) => {
+                            let real_inx = real_index(inx, max_pomo_num);
+                            if let Some(ref pomo) = holder_arr[real_inx] {
                                 if let Some(ref stream) = *pomo.stream.borrow() {
-                                    poll.register(stream, Token(inx),
-                                    Ready::readable()|Ready::writable(), PollOpt::level()).unwrap();
+                                    poll.register(
+                                            stream, Token(real_inx), ready, opt
+                                        ).unwrap();
 
                                 } else {
-                                    errprint!("no handler is found for {}", inx);
+                                    errprint!("no handler is found for registering {}", inx);
 
                                 }
 
                                 // reg timerd
                                 if let Some(ref timerfd) = *pomo._timerfd.borrow() {
-                                    poll.register(timerfd, Token(inx+maxp),
+                                    poll.register(timerfd, Token(inx+max_pomo_num),
                                     Ready::readable(), PollOpt::level()).unwrap();
 
                                 } else {
@@ -297,8 +306,28 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
 
                             }
 
-                        }
+                        },
+
+                        PollAction::REREG(inx, ready, opt) => {
+                            let real_inx = real_index(inx, max_pomo_num);
+                            if let Some(ref pomo) = holder_arr[real_inx] {
+                                if let Some(ref stream) = *pomo.stream.borrow() {
+                                    poll.reregister(
+                                            stream, Token(real_inx), ready, opt
+                                        ).unwrap();
+                                } else {
+                                    errprint!("no handler is found for reregistering {}", inx);
+                                }
+
+                            } else {
+                                errprint!("no holder is found for reregistering {}", inx);
+
+                            }
+
+                        },
+
                     }
+                    // end match
                 }
             }
         }
@@ -356,7 +385,7 @@ fn dispatch_event(time_args: PTime, evt: &Event,
                         _after_write_action: RefCell::new(None),
                     });
 
-                    PollAction::AddRW(inx)
+                    PollAction::REG(inx, Ready::readable(), PollOpt::edge())
                 },
 
                 Err(e) => {
@@ -408,8 +437,11 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
                 UserCommand::EXIT => (PollAction::EXIT(inx), "Goodbye.".to_string()),
 
                 UserCommand::RESET => {
+                    if let Some(ref timerfd) = *holder._timerfd.borrow() {
+                        timerfd.stop();
+                    }
                     holder.pomo.reset();
-                    (PollAction::CONT, "Reset Done".to_string())
+                    (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Reset Done".to_string())
                 },
 
                 UserCommand::NEXT => {
@@ -418,22 +450,22 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
                         match holder.pomo.next_step() {
                             PSTATUS::StartWork => {
                                 timerfd.schedule(holder.pomo.get_ms(PSTATUS::StartWork) as i64);
-                                (PollAction::CONT, "Work time started".to_string())
+                                (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Work time started".to_string())
                             },
 
                             PSTATUS::StartBreak => {
                                 timerfd.schedule(holder.pomo.get_ms(PSTATUS::StartBreak) as i64);
-                                (PollAction::CONT, "Break time started".to_string())
+                                (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Break time started".to_string())
                             },
 
                             PSTATUS::LStartBreak => {
                                 timerfd.schedule(holder.pomo.get_ms(PSTATUS::LStartBreak) as i64);
-                                (PollAction::CONT, "Long Break time started".to_string())
+                                (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Long Break time started".to_string())
                             },
 
-                            PSTATUS::EndWork => (PollAction::CONT, "Work time cancelled".to_string()),
-                            PSTATUS::EndBreak => (PollAction::CONT, "Break time cancelled".to_string()),
-                            PSTATUS::LEndBreak => (PollAction::CONT, "Long Break time cancelled".to_string()),
+                            PSTATUS::EndWork => (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Work time cancelled".to_string()),
+                            PSTATUS::EndBreak => (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Break time cancelled".to_string()),
+                            PSTATUS::LEndBreak => (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Long Break time cancelled".to_string()),
 
                             _ => {
                                 (PollAction::EXIT(inx), "Status incorrect, please restart the program".to_string())
@@ -458,16 +490,16 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
                         PSTATUS::EndBreak => "EndBreak",
                         PSTATUS::LEndBreak => "LongEndBreak",
                     };
-                    (PollAction::CONT, format!("Current Status is {}", st))
+                    (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), format!("Current Status is {}", st))
                 },
 
                 _ => {
-                    (PollAction::CONT, format!("\
-                                               Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.
-                                               Help list:
-                                               n/N\t\t\tGo to the next step
-                                               r/R\t\t\tReset the pomodoro
-                                               q/Q\t\t\tQuit the programs",
+                    (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), format!("\
+                                               Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.\
+                                               \n\nHelp list:\
+                                               \n\tn/N\t\t\tGo to the next step\
+                                               \n\tr/R\t\t\tReset the pomodoro\
+                                               \n\tq/Q\t\t\tQuit the programs",
                                                holder.pomo.get_ms(PSTATUS::LStartBreak), 
                                                holder.pomo.get_thread_hold(),
                                                holder.pomo.get_ms(PSTATUS::StartWork), 
@@ -478,14 +510,14 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
 
             *holder.msg.borrow_mut() = Some(msg);
             *holder._after_write_action.borrow_mut() = Some(rt);
-            PollAction::CONT
 
         } else {
             *holder.msg.borrow_mut() = Some("There is no connection at all, restart it.".to_string());
             *holder._after_write_action.borrow_mut() = Some(PollAction::EXIT(inx));
-            PollAction::CONT
 
         }
+
+        PollAction::REREG(inx, Ready::writable(), PollOpt::edge())
 
     } else if evt.readiness().is_writable() {
         if let Some(ref mut v) = holder.msg.borrow_mut().take() {
@@ -503,7 +535,7 @@ fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAc
         }
 
         match holder._after_write_action.borrow_mut().take() {
-            None => PollAction::CONT,
+            None => PollAction::REREG(inx, Ready::readable(), PollOpt::edge()),
             Some(v) => v,
         }
 
@@ -522,35 +554,39 @@ fn deal_timer_token(holder: &PomodoroHolder, inx: usize, notify_progs: &str) -> 
         _ => None,
     };
 
+    if let Some(ref fd) = *holder._timerfd.borrow() {
+        fd.clear();
+    }
+
     let (rt, msg) = match holder.pomo.next_step() {
         PSTATUS::EndWork => {
             if let Some(prog) = notify_progs_clone {
-                run_notify_command(prog.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "End"));
+                run_notify_command(prog.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "Ends"));
             }
-            (PollAction::CONT, "Work time done.")
+            (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Work time ends")
         },
 
         PSTATUS::EndBreak => {
             if let Some(prog) = notify_progs_clone {
-                run_notify_command(prog.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "End"));
+                run_notify_command(prog.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "Ends"));
             }
-            (PollAction::CONT, "Break time done.")
+            (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Break time ends")
         },
 
         PSTATUS::LEndBreak => {
             if let Some(prog) = notify_progs_clone {
-                run_notify_command(prog.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "End"));
+                run_notify_command(prog.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "Ends"));
             }
-            (PollAction::CONT, "Long Break time done.")
+            (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Long Break time ends")
         },
 
-        _ => (PollAction::EXIT(inx), "Sth is wrong, please restart program."),
+        _ => (PollAction::REREG(inx, Ready::readable(), PollOpt::edge()), "Sth is wrong, please restart program"),
     };
 
     *holder.msg.borrow_mut() = Some(msg.to_string());
     *holder._after_write_action.borrow_mut() = Some(rt);
-    PollAction::CONT
-}
+    PollAction::REREG(inx, Ready::writable(), PollOpt::edge())
+} 
 
 fn parse_command(holder: &PomodoroHolder, input: &[u8], len: usize) -> UserCommand {
     let mut buf: Vec<u8> = Vec::new();
@@ -631,4 +667,12 @@ fn run_notify_command(progs: String) {
     }
 
     cmd_builder.spawn().unwrap();
+}
+
+fn real_index(inx: usize, max_pomo_num: usize) -> usize {
+    match inx {
+        x if x > 0 && x < max_pomo_num => x,
+        y if y > max_pomo_num => y - max_pomo_num,
+        z => z, 
+    }
 }

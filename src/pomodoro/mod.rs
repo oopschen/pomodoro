@@ -4,6 +4,7 @@ pub mod timerfd;
 use std::cell::Cell;
 use std::cell::RefCell;
 
+#[derive(Debug)]
 pub enum PSTATUS {
     INIT,
 

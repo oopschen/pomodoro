@@ -42,8 +42,13 @@ impl TimerFD {
         );
     }
 
+    pub fn clear(&self) {
+        self.rediness.set_readiness(Ready::empty()).unwrap();
+    }
+
     pub fn stop(&self) {
         *self.guard.borrow_mut() = None;
+        self.rediness.set_readiness(Ready::empty()).unwrap();
     }
 }
 
