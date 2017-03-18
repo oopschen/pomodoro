@@ -1,8 +1,8 @@
+pub mod timerfd;
 /// Encapsule pomodoro logic
 /// no thread, no timer
 use std::cell::Cell;
 use std::cell::RefCell;
-mod timerfd;
 
 pub enum PSTATUS {
     INIT,
@@ -130,6 +130,9 @@ impl Pomodoro {
         }
     }
 
+    pub fn get_thread_hold(&self) -> u8 {
+        self.args.thread_hold
+    }
 }
 
 #[cfg(test)]

@@ -5,16 +5,16 @@ mod pomodoro;
 
 use std::char;
 use std::io::Write;
+use std::io::Read;
 use std::thread;
 use std::process::Command;
 use std::process::Stdio;
-use std::sync::mpsc::channel;
 use std::option::Option;
 use std::net::SocketAddr;
 use std::vec::Vec;
 use std::collections::VecDeque;
-use std::cell::Cell;
 use std::cell::RefCell;
+
 use clap::App;
 
 use mio::Events;
@@ -29,6 +29,7 @@ use mio::tcp::TcpStream;
 
 use pomodoro::PSTATUS;
 use pomodoro::Pomodoro;
+use pomodoro::timerfd::TimerFD;
 
 macro_rules! errprint(
     ($($arg:tt)*) => { 
@@ -43,8 +44,8 @@ macro_rules! dereg(
     ( $holder:expr, $i:ident, $poll:ident) => {
         match $holder[$i-1] {
             Some(ref h) => {
-                match *h.hdl.borrow() {
-                    Some(hl) => {
+                match *h.stream.borrow() {
+                    Some(ref hl) => {
                         match $poll.deregister(hl) {
                             Ok(_) => {},
                             Err(e) => errprint!("deregister handler {} fail, {}", $i, e),
@@ -64,8 +65,14 @@ macro_rules! cleanup_holder(
     ( $holder:expr ) => {
         match $holder {
             Some(ref h) => {
-                *h.hdl.borrow_mut() = None;
-                *h.stream.borrow_mut() = None;
+                h.pomo.reset();
+                h.stream.borrow_mut().take();
+                h.msg.borrow_mut().take();
+                h._buf.borrow_mut().take();
+                if let Some(ref timerfd) = *h._timerfd.borrow_mut() {
+                    timerfd.stop();
+                }
+                h._after_write_action.borrow_mut().take();
             },
             None => {},
         }
@@ -75,26 +82,31 @@ macro_rules! cleanup_holder(
 // work_ms, break_ms, lbreak_ms, lbreak_thread_hold
 type PTime = (u32, u32, u32, u8);
 
-struct PomodoroHolder<'a> {
+struct PomodoroHolder {
     pomo: Pomodoro,
-    addr: Cell<SocketAddr>,
-    msg: RefCell<Option<String>>,
-    hdl: RefCell<Option<&'a Evented>>,
+    msg: RefCell<Option<String>>, // message write back
     stream: RefCell<Option<TcpStream>>,
-    _buf: RefCell<Option<Vec<u8>>>,
+    _buf: RefCell<Option<Vec<u8>>>, // read buf 
+    _timerfd: RefCell<Option<TimerFD>>,
+    _after_write_action: RefCell<Option<PollAction>>,
 }
 
 enum PollAction {
     EXIT(usize), // dereg, close
     CONT, // do nothing continue
-    DEREG(usize), // deregister
-    ADD_READ_WRITE(usize),
+    AddRW(usize), // add read and write
 }
 
-const CMD_NEXT:u8 = 0;
-const CMD_RESET:u8 = 1;
-const CMD_QUIT:u8 = 2;
-const CMD_TIMEOUT:u8 = 255;
+#[derive(Debug)]
+enum UserCommand {
+    EXIT,
+    RESET,
+    NEXT,
+    HELP,
+    STATUS,
+    NONE, // can not read any command
+}
+
 const SERVER_TOKEN: usize = 0;
 
 const PMPT_STAGE: &'static str = "{sg}";
@@ -162,7 +174,7 @@ fn main() {
         }
     };
 
-    let maxp = match cmd_matches.value_of("maxuser").unwrap().parse::<u16>() {
+    let maxp = match cmd_matches.value_of("maxuser").unwrap().parse::<usize>() {
         Ok(v) => {
             if v < 1 {
                 errprint!("There must exists some pomodoro.");
@@ -196,13 +208,13 @@ fn parse_listen_address(host: &str, port: u16) -> SocketAddr {
 //      else if read:
 //          read to eof
 //          compare cmd do jobs
-fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, maxp: u16) {
+fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, maxp: usize) {
     let sock_addr = parse_listen_address(host, port);
     let mut holder_arr: Vec<Option<PomodoroHolder>> = Vec::new();
-    let mut avail_index: VecDeque<usize> = VecDeque::with_capacity(maxp as usize);
+    let mut avail_index: VecDeque<usize> = VecDeque::with_capacity(maxp);
     for i in 0..maxp {
         holder_arr.push(None);
-        avail_index.push_back(i as usize);
+        avail_index.push_back(i);
     }
 
     let listener = match TcpListener::bind(&sock_addr) {
@@ -214,7 +226,7 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
 
     };
 
-    let mut evts = Events::with_capacity(maxp as usize);
+    let mut evts = Events::with_capacity(maxp);
 
     let poll = match Poll::new() {
         Ok(p) => p,
@@ -245,25 +257,42 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
             match evts.get(i) {
                 None => continue,
                 Some(evt) => {
-                    match dispatch_event(time_args, &evt, &mut holder_arr, &mut avail_index, &listener) {
+                    match dispatch_event(time_args, &evt, &mut holder_arr, &mut avail_index, &listener, maxp) {
                         PollAction::EXIT(inx) => {
                             dereg!(&holder_arr, inx, poll);
                             cleanup_holder!(holder_arr[inx]);
+                            avail_index.push_back(inx);
+                            println!("Close pomodoro for {}", inx);
                         },
 
                         PollAction::CONT => {},
 
-                        PollAction::DEREG(inx) => {
-                            dereg!(&holder_arr, inx, poll);
-                        },
-
-                        PollAction::ADD_READ_WRITE(inx) => {
+                        PollAction::AddRW(inx) => {
                             if let Some(ref pomo) = holder_arr[inx] {
-                                if let Some(hdl) = *pomo.hdl.borrow() {
-                                    poll.register(hdl, Token(inx),
-                                        Ready::readable()|Ready::writable(), PollOpt::level()).unwrap();
+                                if let Some(ref stream) = *pomo.stream.borrow() {
+                                    poll.register(stream, Token(inx+1),
+                                    Ready::readable()|Ready::writable(), PollOpt::level()).unwrap();
+
+                                } else {
+                                    errprint!("no handler is found for {}", inx);
+
                                 }
+
+                                // reg timerd
+                                if let Some(ref timerfd) = *pomo._timerfd.borrow() {
+                                    poll.register(timerfd, Token(inx+1+maxp),
+                                    Ready::readable(), PollOpt::level()).unwrap();
+
+                                } else {
+                                    errprint!("no timerfd is found for {}", inx);
+
+                                }
+
+                            } else {
+                                errprint!("no holder is found for {}", inx);
+
                             }
+
                         }
                     }
                 }
@@ -277,115 +306,115 @@ fn run_pomodoro(time_args: PTime, notify_progs: &str, host: &str, port: u16, max
        let notify_progs_clone = String::from(notify_progs);
 
        let pomodoro_thread = thread::spawn(move || {
-        // new timer 
-        // new pomodoro
-        // listen on channel for cmd:
-        //  if next:
-        //      if has timer:
-        //          clean it
-        //      call next
-        //      if start_work || start_break || start_lbreak :
-        //          set up timer
-        //  else if reset
-        //      if has timer:
-        //          clean it
-        //      call reset
-        //  else if timeout:
-        //      clear timer handler
-        //      call next
-        //      notify progs if any
-        //  else if quit :
-        //      if has timer:
-        //          clean it
-        //      break
-        let tr = timer::MessageTimer::new(tx_timer);
-        let pomodo = pomodoro::;
-        let mut hdl: Option<timer::Guard> = Option::None;
+// new timer 
+// new pomodoro
+// listen on channel for cmd:
+//  if next:
+//      if has timer:
+//          clean it
+//      call next
+//      if start_work || start_break || start_lbreak :
+//          set up timer
+//  else if reset
+//      if has timer:
+//          clean it
+//      call reset
+//  else if timeout:
+//      clear timer handler
+//      call next
+//      notify progs if any
+//  else if quit :
+//      if has timer:
+//          clean it
+//      break
+let tr = timer::MessageTimer::new(tx_timer);
+let pomodo = pomodoro::;
+let mut hdl: Option<timer::Guard> = Option::None;
 
-        loop {
-        let cmd = rx.recv().unwrap();
-    // clean up timer
-    if let Some(v) = hdl {
-    drop(v);
-    hdl = Option::None;
-    }
+loop {
+let cmd = rx.recv().unwrap();
+        // clean up timer
+        if let Some(v) = hdl {
+        drop(v);
+        hdl = Option::None;
+        }
 
-            // response to command
-            match cmd {
-            CMD_NEXT => {
-            let st = pomodo.next_step(); 
-            match st {
-            PSTATUS::StartWork | PSTATUS::StartBreak | PSTATUS::LStartBreak => {
-            let (sg, sta) = match st {
-            PSTATUS::StartWork => ("Work", "Started"),
-            PSTATUS::StartBreak => ("Break", "Started"),
-            PSTATUS::LStartBreak => ("Long-Break", "Started"),
-            _ => ("Unknown", "Undefined")
+                        // response to command
+                        match cmd {
+                        CMD_NEXT => {
+                        let st = pomodo.next_step(); 
+                        match st {
+                        PSTATUS::StartWork | PSTATUS::StartBreak | PSTATUS::LStartBreak => {
+                        let (sg, sta) = match st {
+                        PSTATUS::StartWork => ("Work", "Started"),
+                        PSTATUS::StartBreak => ("Break", "Started"),
+                        PSTATUS::LStartBreak => ("Long-Break", "Started"),
+                        _ => ("Unknown", "Undefined")
 
-            };
+                        };
 
-            hdl = Option::Some(tr.schedule_with_delay(
-            chrono::Duration::milliseconds(pomodo.get_ms(st) as i64),
-            CMD_TIMEOUT));
+                        hdl = Option::Some(tr.schedule_with_delay(
+                        chrono::Duration::milliseconds(pomodo.get_ms(st) as i64),
+                        CMD_TIMEOUT));
 
-            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, sg).replace(PMPT_STATUS, sta));
-            },
+                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, sg).replace(PMPT_STATUS, sta));
+                        },
 
-            PSTATUS::EndWork => {
-            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "Stopped"));
-            },
+                        PSTATUS::EndWork => {
+                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "Stopped"));
+                        },
 
-            PSTATUS::EndBreak => {
-            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "Stopped"));
-            },
+                        PSTATUS::EndBreak => {
+                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "Stopped"));
+                        },
 
-            PSTATUS::LEndBreak => {
-            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "Stopped"));
-            },
+                        PSTATUS::LEndBreak => {
+                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "Stopped"));
+                        },
 
     _ => {
         run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Unknow").replace(PMPT_STATUS, "Undefined"));
     },
-    }
-},
+                }
+                        },
 
-    CMD_QUIT => break,
+                        CMD_QUIT => break,
 
-    CMD_TIMEOUT => {
-        match pomodo.status() {
-            PSTATUS::StartWork | PSTATUS::StartBreak | PSTATUS::LStartBreak => {},
-            _ => continue,
-        };
+                        CMD_TIMEOUT => {
+                            match pomodo.status() {
+                                PSTATUS::StartWork | PSTATUS::StartBreak | PSTATUS::LStartBreak => {},
+                                _ => continue,
+                            };
 
-        let st = pomodo.next_step();
-        // call notify progs
-        if "" != notify_progs_clone {
-            match st {
-                PSTATUS::EndWork => {
-                    run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "End"));
-                },
+                            let st = pomodo.next_step();
+                            // call notify progs
+                            if "" != notify_progs_clone {
+                                match st {
+                                    PSTATUS::EndWork => {
+                                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Work").replace(PMPT_STATUS, "End"));
+                                    },
 
-                PSTATUS::EndBreak => {
-                    run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "End"));
-                },
+                                    PSTATUS::EndBreak => {
+                                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Break").replace(PMPT_STATUS, "End"));
+                                    },
 
-                PSTATUS::LEndBreak => {
-                    run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "End"));
-                },
+                                    PSTATUS::LEndBreak => {
+                                        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Long-Break").replace(PMPT_STATUS, "End"));
+                                    },
 
-                _ => {}
-            }
+                                    _ => {}
+                                }
+                            }
+                        },
+
+                        CMD_RESET => {
+                            pomodo.reset();
+                            run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Reset").replace(PMPT_STATUS, "Done"));
+                        },
+
+                        _ => continue,
+                        }
         }
-    },
-
-    CMD_RESET => {
-        pomodo.reset();
-        run_notify_command(notify_progs_clone.replace(PMPT_STAGE, "Reset").replace(PMPT_STATUS, "Done"));
-    },
-
-    _ => continue,
-    }
-}
 });
 // end thread
 
@@ -475,68 +504,284 @@ fn run_notify_command(progs: String) {
    }
    */
 
-fn dispatch_event(time_args: PTime, evt: &Event, 
-                  holders: &mut Vec<Option<PomodoroHolder>>, 
-                  avails: &mut VecDeque<usize>, listener: &TcpListener) -> PollAction {
-    // if token is server
-    //  is reable:
-    //      write help message
-    //      get next index
-    //      if none:
-    //          write error message
-    //      new pomodoro
-    //      set up holder
-    // else if is wriable && message is not null
-    //  write message
-    // else if is reaable
-    //  read to eof
-    let Token(token) = evt.token();
-    let mut read_buf: [u8; 2048] = [0; 2048];
-    match token {
-        0 => {
-            // server token
-            if !evt.readiness().is_readable() {
-                return PollAction::CONT;
-            }
-
-            match listener.accept() {
-                Ok((ref mut stream, addr)) => {
-                    let inx = match avails.pop_front() {
-                        Some(i) => i,
-                        None => {
-                            stream.write("Max user reached, please increament it.\n".to_string().as_bytes()).unwrap();
+            fn dispatch_event(time_args: PTime, evt: &Event, 
+                              holders: &mut Vec<Option<PomodoroHolder>>, 
+                              avails: &mut VecDeque<usize>, listener: &TcpListener, maxp: usize) -> PollAction {
+                // if token is server
+                //  is reable:
+                //      write help message
+                //      get next index
+                //      if none:
+                //          write error message
+                //      new pomodoro
+                //      set up holder
+                // else if is wriable && message is not null
+                //  write message
+                // else if is reaable
+                //  read to eof
+                let Token(token) = evt.token();
+                match token {
+                    0 => {
+                        // server token
+                        if !evt.readiness().is_readable() {
                             return PollAction::CONT;
                         }
-                    };
 
-                    // write hello message
-                    let hello_msg = format!("Hello, You! Welcome to Pomodoro.\nPress 'h/H' for help\n");
-                    stream.write(hello_msg.to_string().as_bytes()).unwrap();
-                    // new holder
-                    holders[inx] = Some(PomodoroHolder {
-                       pomo: Pomodoro::new(time_args.0, time_args.1, time_args.2, time_args.3),
-                       addr: Cell::new(addr),
-                       msg: RefCell::new(None),
-                       hdl: RefCell::new(None),
-                       stream: RefCell::new(None),
-                       _buf: RefCell::new(None),
-                    });
+                        match listener.accept() {
+                            Ok((stream, addr)) => {
+                                let mut mut_st = stream;
+                                let inx = match avails.pop_front() {
+                                    Some(i) => i,
+                                    None => {
+                                        mut_st.write("Max user reached, please increament it.\n".to_string().as_bytes()).unwrap();
+                                        return PollAction::CONT;
+                                    }
+                                };
 
-                    PollAction::ADD_READ_WRITE(inx)
-                },
+                                println!("Recv {} for new Pomodoro \"{}\"", addr, inx);
 
-                Err(e) => {
-                    errprint!("accept fail, {}", e);
-                    PollAction::CONT
-                },
+                                // write hello message
+                                let hello_msg = format!("Hello, You! Welcome to Pomodoro.\nPress 'h/H' for help\n");
+                                mut_st.write(hello_msg.to_string().as_bytes()).unwrap();
+                                // new holder
+                                holders[inx] = Some(PomodoroHolder {
+                                    pomo: Pomodoro::new(time_args.0, time_args.1, time_args.2, time_args.3),
+                                    msg: RefCell::new(None),
+                                    stream: RefCell::new(Some(mut_st)),
+                                    _buf: RefCell::new(None),
+                                    _timerfd: RefCell::new(Some(TimerFD::new())),
+                                    _after_write_action: RefCell::new(None),
+                                });
 
+                                PollAction::AddRW(inx)
+                            },
+
+                            Err(e) => {
+                                errprint!("accept fail, {}", e);
+                                PollAction::CONT
+                            },
+
+                        }
+                    },
+
+                    x if x > 0 && x <= maxp => {
+                        if let Some(ref hdl) = holders[x-1] {
+                            deal_stream_token(hdl, x, evt)
+                        } else {
+                            PollAction::EXIT(x)
+                        }
+                    },
+
+                    y if y > maxp => {
+                        if let Some(ref hdl) = holders[y-maxp-1] {
+                            deal_timer_token(hdl, y)
+                        } else {
+                            PollAction::EXIT(y)
+                        }
+                    },
+
+                    _ => PollAction::EXIT(token),
+                }
             }
-        },
 
-        x if x > 1 => {
+fn deal_stream_token(holder: &PomodoroHolder, inx: usize, evt: &Event) -> PollAction {
+    // if read :
+    //  parse command 
+    //  deal with command
+    // if write and have data:
+    //  write data
+    if evt.readiness().is_readable() {
+        if let Some(ref mut stream) = *holder.stream.borrow_mut() {
+            let mut read_buf: [u8;2048] = [0; 2048];
+            let read_num = match stream.read(&mut read_buf) {
+                Ok(n) => n,
+                Err(e) => {
+                    errprint!("read stream {} error: {}", inx, e);
+                    return PollAction::EXIT(inx);
+                },
+            };
+
+            let (rt, msg) = match parse_command(holder, &read_buf, read_num) {
+                UserCommand::EXIT => (PollAction::EXIT(inx), "Goodbye.".to_string()),
+
+                UserCommand::RESET => {
+                    holder.pomo.reset();
+                    (PollAction::CONT, "Reset Done".to_string())
+                },
+
+                UserCommand::NEXT => {
+                    if let Some(ref timerfd) = *holder._timerfd.borrow() {
+                        timerfd.stop();
+                        match holder.pomo.next_step() {
+                            PSTATUS::StartWork => {
+                                timerfd.schedule(holder.pomo.get_ms(PSTATUS::StartWork) as i64);
+                                (PollAction::CONT, "Work time started".to_string())
+                            },
+
+                            PSTATUS::StartBreak => {
+                                timerfd.schedule(holder.pomo.get_ms(PSTATUS::StartBreak) as i64);
+                                (PollAction::CONT, "Break time started".to_string())
+                            },
+
+                            PSTATUS::LStartBreak => {
+                                timerfd.schedule(holder.pomo.get_ms(PSTATUS::LStartBreak) as i64);
+                                (PollAction::CONT, "Long Break time started".to_string())
+                            },
+
+                            _ => {
+                                (PollAction::EXIT(inx), "Status incorrect, please restart the program".to_string())
+                            }
+                        }
+
+
+                    } else {
+                        (PollAction::EXIT(inx), "There is no timer, restart program.".to_string())
+
+                    }
+
+                },
+
+                UserCommand::STATUS => {
+                    let st = match holder.pomo.status() {
+                        PSTATUS::INIT => "Init",
+                        PSTATUS::StartWork => "Working",
+                        PSTATUS::StartBreak => "Breaking",
+                        PSTATUS::LStartBreak => "LongBreaking",
+                        PSTATUS::EndWork => "EndWork",
+                        PSTATUS::EndBreak => "EndBreak",
+                        PSTATUS::LEndBreak => "LongEndBreak",
+                    };
+                    (PollAction::CONT, format!("Current Status is {}", st))
+                },
+
+                _ => {
+                    (PollAction::CONT, format!("\
+    Pomodoro runs a long break time of {} msecs after {} times work time of {} msecs which followd by a break time of {} msecs.
+    Help list:
+    n/N\t\t\tGo to the next step
+    r/R\t\t\tReset the pomodoro
+    q/Q\t\t\tQuit the programs\n",
+    holder.pomo.get_ms(PSTATUS::LStartBreak), 
+    holder.pomo.get_thread_hold(),
+    holder.pomo.get_ms(PSTATUS::StartWork), 
+    holder.pomo.get_ms(PSTATUS::StartBreak))
+                    )
+                },
+            };
+
+            *holder.msg.borrow_mut() = Some(msg);
+            *holder._after_write_action.borrow_mut() = Some(rt);
             PollAction::CONT
-        },
 
-        _ => PollAction::DEREG(token),
+        } else {
+            *holder.msg.borrow_mut() = Some("There is no connection at all, restart it.".to_string());
+            *holder._after_write_action.borrow_mut() = Some(PollAction::EXIT(inx));
+            PollAction::CONT
+
+        }
+
+    } else if evt.readiness().is_writable() {
+        if let Some(ref v) = holder.msg.borrow_mut().take() {
+            if let Some(ref mut stream) = *holder.stream.borrow_mut() {
+                match stream.write_all(v.as_bytes()) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        errprint!("Write msg {}", e);
+                    }
+                }
+            }
+
+        }
+
+        match holder._after_write_action.borrow_mut().take() {
+            None => PollAction::CONT,
+            Some(v) => v,
+        }
+
+    } else {
+        PollAction::EXIT(inx)
+    }
+
+}
+
+fn deal_timer_token(holder: &PomodoroHolder, inx: usize) -> PollAction {
+    // get current status
+    // assemble status text, write to buf
+    // call notify program
+    let (rt, msg) = match holder.pomo.next_step() {
+        PSTATUS::EndWork => (PollAction::CONT, "Work time done."),
+
+        PSTATUS::EndBreak => (PollAction::CONT, "Break time done."),
+
+        PSTATUS::LEndBreak => (PollAction::CONT, "Long Break time done."),
+
+        _ => (PollAction::EXIT(inx), "Sth is wrong, please restart program."),
+    };
+
+    *holder.msg.borrow_mut() = Some(msg.to_string());
+    *holder._after_write_action.borrow_mut() = Some(rt);
+    PollAction::CONT
+}
+
+fn parse_command(holder: &PomodoroHolder, input: &[u8], len: usize) -> UserCommand {
+    let mut buf: Vec<u8> = Vec::new();
+    let mut read_buf = holder._buf.borrow_mut();
+
+    // insert data
+    if let Some(ref mut v) = read_buf.take() {
+        buf.append(v);
+    }
+
+    for i in 0..len {
+        buf.push(input[i]);
+    }
+
+    let mut del_pos_excl: usize = buf.len();
+    let mut cmd_eol: usize = 0;
+    let mut found_eol = false;
+    if let Some(eol_pos) = buf.iter().position(|&x| x as char == '\r' || x as char == '\n') {
+        if '\r' == buf[eol_pos] as char && (eol_pos + 1) < buf.len() && '\n' == buf[eol_pos+1] as char {
+            del_pos_excl = eol_pos + 2;
+            cmd_eol = eol_pos;
+            found_eol = true;
+        } else if '\n' == buf[eol_pos] as char {
+            del_pos_excl = eol_pos + 1;
+            cmd_eol = eol_pos;
+            found_eol = true;
+        }
+    }
+
+    let str_buf: Vec<u8>; 
+    if found_eol {
+        let mut tmp_str = buf.drain(0..del_pos_excl).collect::<Vec<u8>>(); 
+        str_buf = tmp_str.drain(0..cmd_eol).collect();
+        *read_buf = match buf.is_empty() {
+            true => None,
+            false => Some(buf),
+        };
+
+    } else {
+        str_buf = buf;
+        *read_buf = Some(str_buf.clone());
+        return UserCommand::NONE;
+
+    }
+
+    // compare cmd
+    let cmd_str = match String::from_utf8(str_buf) {
+        Ok(s) => s,
+        Err(e) => {
+            errprint!("parse command: {}", e);
+            return UserCommand::NONE;
+        }
+    };
+
+    match cmd_str.to_lowercase().as_ref() {
+        "n" | "next" => UserCommand::NEXT, 
+        "r" | "reset" => UserCommand::RESET, 
+        "s" | "status" => UserCommand::STATUS, 
+        "h" | "help" => UserCommand::HELP, 
+        "q" | "quit" => UserCommand::EXIT, 
+        _ => UserCommand::NONE,
     }
 }

@@ -3,11 +3,10 @@ extern crate timer;
 extern crate chrono;
 
 use std::cell::RefCell;
-use std::sync::mpsc::Receiver;
 use std::io::Result;
 use std::sync::Arc;
 
-use self::mio::Evented;
+use self::mio::event::Evented;
 use self::mio::Registration;
 use self::mio::SetReadiness;
 use self::mio::Ready;
@@ -38,7 +37,7 @@ impl TimerFD {
         let share_ptr = self.rediness.clone();
         *self.guard.borrow_mut() = Some(
             self.timer.schedule_with_delay(chrono::Duration::milliseconds(mill_secs), move || {
-                share_ptr.set_readiness(Ready::readable());
+                share_ptr.set_readiness(Ready::readable()).unwrap();
             })
         );
     }
