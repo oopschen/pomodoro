@@ -667,7 +667,12 @@ fn run_notify_command(progs: String) {
         cmd_builder.arg(arg);
     }
 
-    cmd_builder.spawn().unwrap();
+    match cmd_builder.output() {
+        Ok(_) => (),
+        Err(e) => {
+            errprint!("run command: {}", e);
+        }
+    }
 }
 
 fn real_index(inx: usize, max_pomo_num: usize) -> usize {
